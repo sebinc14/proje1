@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/guest_helper.dart';
 
 class AppProvider extends ChangeNotifier {
   String _activeTable = "Seçilmedi";
@@ -190,6 +191,8 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> toggleFavorite(Map<String, dynamic> product) async {
+    if (checkGuestAndWarn()) return;
+    
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     

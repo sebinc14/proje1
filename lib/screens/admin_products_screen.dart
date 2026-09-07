@@ -16,6 +16,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   final TextEditingController _imageUrlController = TextEditingController(); // Görsel linki için eklendi
   final TextEditingController _descriptionController = TextEditingController(); // Açıklama için eklendi
   String _selectedCategory = 'Sıcak Kahveler';
+  String _filterCategory = 'Tümü';
 
   List<String> _categories = [
     'Sıcak Kahveler',
@@ -343,6 +344,110 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     });
   }
 
+  void _showDeleteCategoryDialog(String categoryName) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Kategoriyi Sil"),
+          content: Text("'$categoryName' kategorisini silmek istediğinize emin misiniz?\n\nBu işlem ürünleri silmez, sadece kategorisiz (sahipsiz) bırakır."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("İptal"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _deleteCategory(categoryName);
+              },
+              child: const Text("Sil", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Future<void> _deleteCategory(String categoryName) async {
+    // Remove from main_categories
+    try {
+      await FirebaseFirestore.instance.collection('settings').doc('main_categories').update({
+        'list': FieldValue.arrayRemove([categoryName])
+      });
+    } catch (e) {
+      // In case the document or field doesn't exist yet
+    }
+
+    // Update orphaned products
+    final query = await FirebaseFirestore.instance.collection('products').where('category', isEqualTo: categoryName).get();
+    final batch = FirebaseFirestore.instance.batch();
+    for (var doc in query.docs) {
+      batch.update(doc.reference, {'category': null});
+    }
+    await batch.commit();
+
+    if (mounted) {
+      setState(() {
+        _categories.remove(categoryName);
+        if (_filterCategory == categoryName) {
+          _filterCategory = 'Tümü';
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$categoryName kategorisi silindi.")));
+    }
+  }
+
+  void _showCategorySelectionModal(DocumentSnapshot product, String? currentCategory) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const ListTile(
+                  title: Text("Kategori Seç", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+                const Divider(),
+                ..._categories.map((category) {
+                  return ListTile(
+                    title: Text(category),
+                    trailing: category == currentCategory ? const Icon(Icons.check, color: Colors.green) : const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      await FirebaseFirestore.instance.collection('products').doc(product.id).update({
+                        'category': category,
+                      });
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Kategori güncellendi.")));
+                      }
+                    },
+                  );
+                }).toList(),
+                
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.add_circle, color: Colors.blue),
+                  title: const Text("Yeni Kategori Tanımla", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showAddMainCategoryDialog(setState);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF6B4E3D);
@@ -395,6 +500,63 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           ),
           
           const Divider(height: 1, thickness: 1),
+          const SizedBox(height: 12),
+          
+          // Kategori Filtreleme Alanı
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: ['Tümü', ..._categories].length,
+              itemBuilder: (context, index) {
+                final category = ['Tümü', ..._categories][index];
+                final isSelected = category == _filterCategory;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _filterCategory = category;
+                      });
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: category == 'Tümü' ? 16 : 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? primaryColor : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: isSelected ? primaryColor : Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            category,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black87,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          if (category != 'Tümü') ...[
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () => _showDeleteCategoryDialog(category),
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: isSelected ? Colors.white70 : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
           
           // MEVCUT STANDART ÜRÜNLER LİSTESİ
           Expanded(
@@ -408,7 +570,18 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                   return const Center(child: Text("Menüde henüz ürün yok. Hemen ekle! 🍰", style: TextStyle(fontSize: 16)));
                 }
 
-                final products = snapshot.data!.docs;
+                final allProducts = snapshot.data!.docs;
+                final products = allProducts.where((doc) {
+                  if (_filterCategory == 'Tümü') return true;
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['category'] == _filterCategory;
+                }).toList();
+
+                if (products.isEmpty) {
+                  return Center(
+                    child: Text("$_filterCategory kategorisinde ürün bulunamadı.", style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                  );
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -469,7 +642,34 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                                   ]
                                 ],
                               ),
-                              subtitle: Text(data['category'] ?? ''),
+                              subtitle: data['category'] == null || data['category'].toString().isEmpty
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(top: 8, bottom: 4),
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.redAccent,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                          minimumSize: const Size(120, 32),
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        onPressed: () => _showCategorySelectionModal(product, null),
+                                        child: const Text("Kategori Seç", style: TextStyle(color: Colors.white, fontSize: 12)),
+                                      ),
+                                    )
+                                  : GestureDetector(
+                                      onTap: () => _showCategorySelectionModal(product, data['category']),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 4, bottom: 4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(data['category'], style: const TextStyle(color: Colors.blueGrey)),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.edit, size: 12, color: Colors.blueGrey),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                               trailing: Text("${data['price']} ₺", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
                             ),
                             const Divider(height: 1),

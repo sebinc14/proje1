@@ -179,18 +179,21 @@ class _RepeatOrderAndCategoriesWidgetState extends State<RepeatOrderAndCategorie
                                   ),
                                   const SizedBox(width: 6),
                                   ElevatedButton.icon(
-                                    onPressed: () {
-                                      final cart = context.read<CartProvider>();
-                                      for (var item in itemsToCart) {
-                                        cart.addToCart(item);
-                                      }
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text("Tekrar sipariş sepete eklendi!"),
-                                          duration: Duration(milliseconds: 900),
-                                        ),
-                                      );
-                                    },
+                                      onPressed: () {
+                                        final cart = context.read<CartProvider>();
+                                        bool anyAdded = false;
+                                        for (var item in itemsToCart) {
+                                          if (cart.addToCart(item)) anyAdded = true;
+                                        }
+                                        if (anyAdded) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text("Tekrar sipariş sepete eklendi!"),
+                                              duration: Duration(milliseconds: 900),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     icon: const Icon(Icons.refresh, size: 14),
                                     label: const Text("Aynısından", style: TextStyle(fontSize: 10)),
                                     style: ElevatedButton.styleFrom(

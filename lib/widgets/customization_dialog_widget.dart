@@ -46,10 +46,12 @@ class CustomizationDialogWidget extends StatefulWidget {
         "quantity": initialQuantity ?? 1,
         "extras": [],
       };
-      context.read<CartProvider>().addToCart(productMap);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("$productTitle sepete eklendi!"), backgroundColor: Colors.green),
-      );
+      bool added = context.read<CartProvider>().addToCart(productMap);
+      if (added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("$productTitle sepete eklendi!"), backgroundColor: Colors.green),
+        );
+      }
       return;
     }
 
@@ -194,11 +196,13 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
         SnackBar(content: Text("${widget.productTitle} güncellendi!"), backgroundColor: Colors.green),
       );
     } else {
-      context.read<CartProvider>().addToCart(productMap);
+      bool added = context.read<CartProvider>().addToCart(productMap);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${widget.productTitle} sepete eklendi!"), backgroundColor: Colors.green),
-      );
+      if (added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("${widget.productTitle} sepete eklendi!"), backgroundColor: Colors.green),
+        );
+      }
     }
   }
 

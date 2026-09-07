@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
+import 'utils/guest_helper.dart'; // navigatorKey için
+
 // Serenay E-Commerce Paketini Projeye Dahil Ediyoruz
 import 'package:serenay_ecommerce_widgets/serenay_ecommerce_widgets.dart';
 
@@ -12,6 +14,7 @@ import 'package:serenay_ecommerce_widgets/serenay_ecommerce_widgets.dart';
 import 'widgets/barista_suggestion_widget.dart';
 import 'providers/app_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/stock_provider.dart';
 
 // Ekran ve Widget İmportları
 import 'screens/auth_screen.dart'; 
@@ -42,6 +45,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => StockProvider()),
       ],
       child: const MokaMolaApp(),
     ),
@@ -54,6 +58,7 @@ class MokaMolaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Moka Mola',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -407,14 +412,16 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
                               "image": widget.data['imageUrl'] ?? '',
                               "category": category,
                             };
-                            context.read<CartProvider>().addToCart(productToAdd);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("${widget.data['name']} sepete eklendi! 🛒"),
-                                duration: const Duration(seconds: 2),
-                                backgroundColor: primaryColor,
-                              ),
-                            );
+                              bool added = context.read<CartProvider>().addToCart(productToAdd);
+                              if (added) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("${widget.data['name']} sepete eklendi! 🛒"),
+                                    duration: const Duration(seconds: 2),
+                                    backgroundColor: primaryColor,
+                                  ),
+                                );
+                              }
                           }
                         },
                         child: Container(
@@ -697,15 +704,17 @@ class _CoffeeCustomizationSheetState extends State<CoffeeCustomizationSheet> {
                           "extraShots": _extraShots,
                         }
                       };
-                      context.read<CartProvider>().addToCart(productToAdd);
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("${widget.productData['name']} sepete eklendi! 🛒 Toplam: ${_totalPrice.toStringAsFixed(2)} TL"),
-                          duration: const Duration(seconds: 3),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                        bool added = context.read<CartProvider>().addToCart(productToAdd);
+                        Navigator.pop(context);
+                        if (added) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("${widget.productData['name']} sepete eklendi! 🛒 Toplam: ${_totalPrice.toStringAsFixed(2)} TL"),
+                              duration: const Duration(seconds: 3),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,

@@ -204,18 +204,23 @@ class OrderHistoryModalWidget extends StatelessWidget {
                                     // Tekrarla Butonu (Sepete Atar)
                                     GestureDetector(
                                       onTap: () {
-                                        final cart = context.read<CartProvider>();
-                                        for (var item in cartItems) {
-                                          cart.addToCart({
-                                            "title": item['name'],
-                                            "price": item['price'],
-                                            "quantity": item['quantity'],
-                                            "extras": item['extras'] ?? [],
-                                          });
-                                        }
-                                        Navigator.pop(context); // Bu pencereyi kapat
-                                        CartModalWidget.showCartScreen(context); // Sepeti aç
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sipariş başarıyla sepete aktarıldı!"), backgroundColor: Colors.green));
+                                          final cart = context.read<CartProvider>();
+                                          bool anyAdded = false;
+                                          for (var item in cartItems) {
+                                            if (cart.addToCart({
+                                              "title": item['name'],
+                                              "price": item['price'],
+                                              "quantity": item['quantity'],
+                                              "extras": item['extras'] ?? [],
+                                            })) {
+                                              anyAdded = true;
+                                            }
+                                          }
+                                          if (anyAdded) {
+                                            Navigator.pop(context); // Bu pencereyi kapat
+                                            CartModalWidget.showCartScreen(context); // Sepeti aç
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sipariş başarıyla sepete aktarıldı!"), backgroundColor: Colors.green));
+                                          }
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

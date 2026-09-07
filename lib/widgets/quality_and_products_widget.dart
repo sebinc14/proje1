@@ -158,20 +158,22 @@ class QualityAndProductsWidget extends StatelessWidget {
                                     GestureDetector(
                                       onTap: () {
                                         final isDessertOrSavory = category == "Tatlılar" || category == "Tuzlular";
-                                        if (isDessertOrSavory) {
-                                          context.read<CartProvider>().addToCart({
-                                            "title": title,
-                                            "price": price,
-                                            "image": image,
-                                            "category": category,
-                                          });
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text("$title sepete eklendi!"),
-                                              duration: const Duration(seconds: 1),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
+                                          if (isDessertOrSavory) {
+                                            bool added = context.read<CartProvider>().addToCart({
+                                              "title": title,
+                                              "price": price,
+                                              "image": image,
+                                              "category": category,
+                                            });
+                                            if (added) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("$title sepete eklendi!"),
+                                                  duration: const Duration(seconds: 1),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            }
                                         } else {
                                           CustomizationDialogWidget.showCustomization(context, productTitle: title, productPrice: product["price"].toString(), imageUrl: image, category: category);
                                         }

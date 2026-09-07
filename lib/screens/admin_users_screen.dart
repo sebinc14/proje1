@@ -12,8 +12,35 @@ class AdminUsersScreen extends StatefulWidget {
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final String? currentUserUid = FirebaseAuth.instance.currentUser?.uid;
+  final TextEditingController _emailController = TextEditingController();
 
-  Future<void> _toggleAdminRole(String uid, String currentRole) async {
+  Future<void> _addWaiter() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return;
+
+    try {
+      final query = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: email).get();
+      
+      if (query.docs.isNotEmpty) {
+        await query.docs.first.reference.update({'role': 'waiter'});
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$email hesabı Garson yapıldı."), backgroundColor: Colors.green));
+      } else {
+        await FirebaseFirestore.instance.collection('users').doc(email).set({
+          'email': email,
+          'role': 'waiter',
+          'firstName': 'Garson',
+          'lastName': 'Kullanıcısı',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$email sisteme Garson olarak eklendi."), backgroundColor: Colors.green));
+      }
+      _emailController.clear();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hata: $e"), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _changeUserRole(String uid, String newRole) async {
     if (uid == currentUserUid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -24,7 +51,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       return;
     }
 
-    final newRole = currentRole == 'admin' ? 'customer' : 'admin';
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'role': newRole,
@@ -32,7 +58,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newRole == 'admin' ? "Kullanıcıya Admin yetkisi verildi." : "Kullanıcının Admin yetkisi alındı."),
+            content: Text("Kullanıcı rolü güncellendi: $newRole"),
             backgroundColor: Colors.green,
           ),
         );
@@ -82,6 +108,38 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
           return Column(
             children: [
+              // Garson Ekleme Formu
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          hintText: "E-posta adresi",
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                      onPressed: _addWaiter,
+                      child: const Text("Garson Ekle", style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ),
+
               // İstatistik Kartı
               Container(
                 margin: const EdgeInsets.all(16),
@@ -126,10 +184,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       elevation: 1,
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: isAdmin ? Colors.amber.shade700 : Colors.blueGrey.shade100,
+                          backgroundColor: isAdmin ? Colors.amber.shade700 : (role == 'waiter' ? Colors.green.shade600 : Colors.blueGrey.shade100),
                           child: Icon(
-                            isAdmin ? Icons.admin_panel_settings : Icons.person,
-                            color: isAdmin ? Colors.white : Colors.blueGrey.shade600,
+                            isAdmin ? Icons.admin_panel_settings : (role == 'waiter' ? Icons.room_service : Icons.person),
+                            color: isAdmin || role == 'waiter' ? Colors.white : Colors.blueGrey.shade600,
                           ),
                         ),
                         title: Text(
@@ -148,10 +206,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           ],
                         ),
                         isThreeLine: true,
-                        trailing: Switch(
-                          value: isAdmin,
-                          activeColor: Colors.amber.shade700,
-                          onChanged: isCurrentUser ? null : (value) => _toggleAdminRole(uid, role),
+                        trailing: DropdownButton<String>(
+                          value: role,
+                          underline: const SizedBox(),
+                          items: const [
+                            DropdownMenuItem(value: 'customer', child: Text("Müşteri")),
+                            DropdownMenuItem(value: 'admin', child: Text("Admin")),
+                            DropdownMenuItem(value: 'waiter', child: Text("Garson")),
+                          ],
+                          onChanged: isCurrentUser ? null : (newRole) {
+                            if (newRole != null && newRole != role) {
+                              _changeUserRole(uid, newRole);
+                            }
+                          },
                         ),
                       ),
                     );

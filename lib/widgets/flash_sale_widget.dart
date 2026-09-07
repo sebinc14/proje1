@@ -215,18 +215,20 @@ class _FlashSaleWidgetState extends State<FlashSaleWidget> {
                                         onTap: () {
                                           final isDessert = category.toLowerCase().contains("tatlı");
                                           if (isDessert) {
-                                            context.read<CartProvider>().addToCart({
+                                            bool added = context.read<CartProvider>().addToCart({
                                               "title": title,
                                               "price": "${newPrice.toStringAsFixed(2)} TL",
                                               "image": image,
                                             });
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text("$title sepete eklendi!"),
-                                                duration: const Duration(seconds: 1),
-                                                backgroundColor: Colors.green,
-                                              ),
-                                            );
+                                            if (added) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("$title sepete eklendi!"),
+                                                  duration: const Duration(seconds: 1),
+                                                  backgroundColor: Colors.green,
+                                                ),
+                                              );
+                                            }
                                           } else {
                                             CustomizationDialogWidget.showCustomization(
                                               context, 

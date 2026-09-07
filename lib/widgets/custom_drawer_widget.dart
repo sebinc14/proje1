@@ -77,10 +77,10 @@ class CustomDrawerWidget extends StatelessWidget {
           Container(
             padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, left: 16, right: 16, bottom: 20),
             decoration: BoxDecoration(color: activeColor),
-            child: FutureBuilder<DocumentSnapshot>(
+            child: FutureBuilder<DocumentSnapshot?>(
               future: FirebaseAuth.instance.currentUser != null 
                   ? FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get()
-                  : Future.value(null),
+                  : Future<DocumentSnapshot?>.value(null),
               builder: (context, snapshot) {
                 String fullName = "Kullanıcı";
                 if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
@@ -195,14 +195,14 @@ class CustomDrawerWidget extends StatelessWidget {
                     }
                   ),
                   
-                  // Admin Paneli (Sadece Adminler İçin)
+                  // Yönetim Paneli (Admin ve Garsonlar İçin)
                   FutureBuilder<String>(
                     future: _getUserRole(),
                     builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data == 'admin') {
+                      if (snapshot.hasData && (snapshot.data == 'admin' || snapshot.data == 'waiter')) {
                         return _buildMenuItem(
                           icon: Icons.admin_panel_settings,
-                          title: "Admin Paneli",
+                          title: "Yönetim Paneli",
                           iconColor: Colors.deepPurple,
                           onTap: () {
                             Navigator.pop(context); // Çekmeceyi kapat
@@ -214,7 +214,7 @@ class CustomDrawerWidget extends StatelessWidget {
                         );
                       }
                       return const SizedBox.shrink();
-                    },
+                    }
                   ),
 
                   _buildMenuItem(icon: Icons.shopping_bag_outlined, title: "Sepetim", onTap: () { Navigator.pop(context); CartModalWidget.showCartScreen(context); }),
@@ -261,49 +261,6 @@ class CustomDrawerWidget extends StatelessWidget {
                   // Kafeyi Bul (YENİ)
                   _buildMenuItem(icon: Icons.location_on_outlined, title: "Kafeyi Bul & Saatler", onTap: () { Navigator.pop(context); CafeInfoDialogWidget.show(context); }),
                   
-                  const SizedBox(height: 24),
-                  const Text("MENÜ & KATEGORİLER", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5)),
-                  const SizedBox(height: 12),
-
-                  // KATEGORİLER ALANI
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
-                    child: Theme(
-                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                      child: ExpansionTile(
-                        initiallyExpanded: true,
-                        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                        leading: _buildCategoryIcon(Icons.local_cafe_outlined),
-                        title: const Text("Kahveler", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
-                        iconColor: Colors.grey,
-                        collapsedIconColor: Colors.grey,
-                        children: [
-                          Divider(height: 1, color: Colors.grey.shade200),
-                          ListTile(
-                            contentPadding: const EdgeInsets.only(left: 48, right: 16),
-                            title: const Text("• Sıcak Kahveler", style: TextStyle(fontSize: 13, color: Colors.black87)),
-                            trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-                            dense: true,
-                            visualDensity: VisualDensity.compact,
-                            onTap: () => navigateToCategory("Sıcak Kahveler"),
-                          ),
-                          ListTile(
-                            contentPadding: const EdgeInsets.only(left: 48, right: 16),
-                            title: const Text("• Soğuk Kahveler", style: TextStyle(fontSize: 13, color: Colors.black87)),
-                            trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-                            dense: true,
-                            visualDensity: VisualDensity.compact,
-                            onTap: () => navigateToCategory("Soğuk Kahveler"),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  _buildCategoryItem(context, icon: Icons.cake_outlined, title: "Tatlılar", onTap: () => navigateToCategory("Tatlılar")),
-                  _buildCategoryItem(context, icon: Icons.lunch_dining_outlined, title: "Tuzlular", onTap: () => navigateToCategory("Tuzlular")),
-                  _buildCategoryItem(context, icon: Icons.auto_awesome_outlined, title: "Özel İçecekler", onTap: () => navigateToCategory("Özel İçecekler")),
 
                 ],
               ),
@@ -340,6 +297,7 @@ class CustomDrawerWidget extends StatelessWidget {
                   future: _getUserRole(),
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
+                      bool isGuest = FirebaseAuth.instance.currentUser?.isAnonymous ?? false;
                       return Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 8),
                         child: SizedBox(
@@ -355,10 +313,10 @@ class CustomDrawerWidget extends StatelessWidget {
                                 );
                               }
                             },
-                            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 18),
-                            label: const Text("Çıkış Yap", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                            icon: Icon(isGuest ? Icons.person_add : Icons.logout, color: isGuest ? const Color(0xFF6B4E3D) : Colors.redAccent, size: 18),
+                            label: Text(isGuest ? "Üye Ol" : "Çıkış Yap", style: TextStyle(color: isGuest ? const Color(0xFF6B4E3D) : Colors.redAccent, fontWeight: FontWeight.bold)),
                             style: TextButton.styleFrom(
-                              backgroundColor: Colors.red.withOpacity(0.05),
+                              backgroundColor: isGuest ? const Color(0xFF6B4E3D).withOpacity(0.05) : Colors.red.withOpacity(0.05),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),

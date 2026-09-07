@@ -207,6 +207,42 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () async {
+                    try {
+                      await FirebaseAuth.instance.signInAnonymously();
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HomeScreen()),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("Misafir girişi başarısız: $e"),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: activeColor),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text(
+                    "Misafir Kullanıcı Girişi",
+                    style: TextStyle(color: activeColor, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
 
               Row(

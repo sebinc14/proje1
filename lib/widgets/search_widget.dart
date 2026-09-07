@@ -122,15 +122,17 @@ class _SearchWidgetState extends State<SearchWidget> {
                         trailing: GestureDetector(
                           onTap: () {
                             if (isDessertOrSavory) {
-                              context.read<CartProvider>().addToCart({
+                              bool added = context.read<CartProvider>().addToCart({
                                 "title": title,
                                 "price": price,
                                 "image": imageUrl,
                                 "category": category,
                               });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("$title sepete eklendi!"), duration: const Duration(milliseconds: 900), backgroundColor: MokaColors.primary),
-                              );
+                              if (added) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("$title sepete eklendi!"), duration: const Duration(milliseconds: 900), backgroundColor: MokaColors.primary),
+                                );
+                              }
                             } else {
                               CustomizationDialogWidget.showCustomization(
                                 context, 

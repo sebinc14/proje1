@@ -122,13 +122,15 @@ class FavoritesModalWidget extends StatelessWidget {
                                   GestureDetector(
                                     onTap: () {
                                       // Sepete varsayılan (standart) özellikleriyle atar
-                                      cartProvider.addToCart({
+                                      bool added = cartProvider.addToCart({
                                         "title": product["title"] ?? "Favori Ürün",
                                         "price": product["price"] ?? product["newPrice"] ?? "",
                                         "quantity": 1,
                                         "extras": ["Standart"],
                                       });
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${product["title"]} sepete eklendi!"), backgroundColor: Colors.green));
+                                      if (added) {
+                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${product["title"]} sepete eklendi!"), backgroundColor: Colors.green));
+                                      }
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.all(8),

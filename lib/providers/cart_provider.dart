@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../utils/guest_helper.dart';
 
 class CartProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _cartItems = [];
@@ -111,7 +112,9 @@ class CartProvider extends ChangeNotifier {
     return true;
   }
 
-  void addToCart(Map<String, dynamic> product) {
+  bool addToCart(Map<String, dynamic> product) {
+    if (checkGuestAndWarn()) return false;
+
     int existingIndex = _cartItems.indexWhere((item) {
       bool sameTitle = item["title"] == product["title"];
       List<dynamic>? itemExtras = item["extras"] as List<dynamic>?;
@@ -129,6 +132,7 @@ class CartProvider extends ChangeNotifier {
     }
     _syncToFirestore();
     notifyListeners();
+    return true;
   }
 
   void updateCartItem(int index, Map<String, dynamic> updatedProduct) {
@@ -236,6 +240,8 @@ class CartProvider extends ChangeNotifier {
     required String deliveryAddress,
     required String activeTable,
   }) async {
+    if (checkGuestAndWarn()) return;
+
     if (_cartItems.isNotEmpty) {
       _lastOrderItems = List.from(_cartItems);
       _lastOrderTotal = finalTotalPrice;
