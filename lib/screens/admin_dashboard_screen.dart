@@ -10,6 +10,7 @@ import 'admin_banner_screen.dart';
 import 'admin_reviews_screen.dart';
 import 'admin_announcement_screen.dart';
 import 'admin_tables_screen.dart'; // Masa yönetimi için
+import 'admin_users_screen.dart'; // Kullanıcı yönetimi için
 import '../main.dart'; // HomeScreen'e erişmek için
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -176,6 +177,21 @@ class AdminDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const AdminTablesScreen()),
+                );
+              },
+            ),
+
+            // 9. Kullanıcı Yönetimi
+            _buildAdminCard(
+              context,
+              title: "Kullanıcı Yönetimi",
+              subtitle: "Üyeleri gör ve yetki ver",
+              icon: Icons.people,
+              color: Colors.blueAccent.shade700,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminUsersScreen()),
                 );
               },
             ),

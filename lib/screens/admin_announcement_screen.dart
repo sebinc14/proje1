@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_provider.dart';
 
 class AdminAnnouncementScreen extends StatefulWidget {
   const AdminAnnouncementScreen({super.key});
@@ -64,6 +66,23 @@ class _AdminAnnouncementScreenState extends State<AdminAnnouncementScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+              ),
+              child: SwitchListTile(
+                title: const Text("Duyuruyu Ana Sayfada Göster", style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text("Eğer kapalıysa müşteriler ana sayfada duyuruyu göremez."),
+                value: context.watch<AppProvider>().isAnnouncementVisible,
+                onChanged: (val) {
+                  context.read<AppProvider>().toggleAnnouncementVisibility(val);
+                },
+                activeColor: primaryColor,
+              ),
+            ),
+            const SizedBox(height: 24),
             const Text(
               "Haftanın Duyurusu",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -73,7 +92,7 @@ class _AdminAnnouncementScreenState extends State<AdminAnnouncementScreen> {
               "Bu alanda güncellediğiniz duyuru, müşteri uygulamasının ana sayfasında hemen görünecektir.",
               style: TextStyle(color: Colors.grey, fontSize: 13),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(

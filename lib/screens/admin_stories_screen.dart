@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_provider.dart';
 
 class AdminStoriesScreen extends StatefulWidget {
   const AdminStoriesScreen({super.key});
@@ -98,53 +100,69 @@ class _AdminStoriesScreenState extends State<AdminStoriesScreen> {
         title: const Text("Hikaye Yönetimi", style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('stories').orderBy('createdAt', descending: true).snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("Henüz hikaye eklenmemiş."));
-          }
-
-          final stories = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: stories.length,
-            itemBuilder: (context, index) {
-              final data = stories[index].data() as Map<String, dynamic>;
-              final docId = stories[index].id;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: NetworkImage(data['imageUrl'] ?? ''),
-                    onBackgroundImageError: (_, __) {},
-                    child: data['imageUrl'] == null || data['imageUrl'].isEmpty
-                        ? const Icon(Icons.image_not_supported)
-                        : null,
-                  ),
-                  title: Text(data['title'] ?? ''),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _showStoryDialog(stories[index]),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteStory(docId),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+      body: Column(
+        children: [
+          SwitchListTile(
+            title: const Text("Hikayeleri Ana Sayfada Göster", style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text("Eğer kapalıysa müşteriler hikayeleri göremez."),
+            value: context.watch<AppProvider>().isStoryVisible,
+            onChanged: (val) {
+              context.read<AppProvider>().toggleStoryVisibility(val);
             },
-          );
-        },
+            activeColor: primaryColor,
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('stories').orderBy('createdAt', descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("Henüz hikaye eklenmemiş."));
+                }
+
+                final stories = snapshot.data!.docs;
+
+                return ListView.builder(
+                  itemCount: stories.length,
+                  itemBuilder: (context, index) {
+                    final data = stories[index].data() as Map<String, dynamic>;
+                    final docId = stories[index].id;
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: NetworkImage(data['imageUrl'] ?? ''),
+                          onBackgroundImageError: (_, __) {},
+                          child: data['imageUrl'] == null || data['imageUrl'].isEmpty
+                              ? const Icon(Icons.image_not_supported)
+                              : null,
+                        ),
+                        title: Text(data['title'] ?? ''),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _showStoryDialog(stories[index]),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteStory(docId),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showStoryDialog(),

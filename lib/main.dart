@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'package:serenay_ecommerce_widgets/serenay_ecommerce_widgets.dart';
 
 // Provider İmportları
+import 'widgets/barista_suggestion_widget.dart';
 import 'providers/app_provider.dart';
 import 'providers/cart_provider.dart';
 
@@ -88,11 +89,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const SearchWidget(),
                   const SizedBox(height: 8),
-                  StoryWidget(),
-                  const SizedBox(height: 16),
-                  const BannerCarouselWidget(),
-                  const SizedBox(height: 24),
+                  if (context.watch<AppProvider>().isStoryVisible) ...[
+                    StoryWidget(),
+                    const SizedBox(height: 16),
+                  ],
+                  if (context.watch<AppProvider>().isBannerVisible) ...[
+                    const BannerCarouselWidget(),
+                    const SizedBox(height: 24),
+                  ],
                   const DeliveryAndCouponWidget(),
+                  const SizedBox(height: 16),
+                  const BaristaSuggestionWidget(),
                   const SizedBox(height: 16),
                   const FlashSaleWidget(),
                   const SizedBox(height: 24),

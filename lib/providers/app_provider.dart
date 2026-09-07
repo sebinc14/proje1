@@ -29,8 +29,32 @@ class AppProvider extends ChangeNotifier {
 
   StreamSubscription? _userSub;
   StreamSubscription? _favoritesSub;
+  StreamSubscription? _settingsSub;
+
+  bool _isStoryVisible = true;
+  bool _isBannerVisible = true;
+  bool _isAnnouncementVisible = true;
+
+  bool get isStoryVisible => _isStoryVisible;
+  bool get isBannerVisible => _isBannerVisible;
+  bool get isAnnouncementVisible => _isAnnouncementVisible;
 
   AppProvider() {
+    _settingsSub = FirebaseFirestore.instance.collection('settings').doc('story_settings').snapshots().listen((doc) {
+      if (doc.exists) {
+        _isStoryVisible = doc.data()?['isStoryVisible'] ?? true;
+        _isBannerVisible = doc.data()?['isBannerVisible'] ?? true;
+        _isAnnouncementVisible = doc.data()?['isAnnouncementVisible'] ?? true;
+      } else {
+        FirebaseFirestore.instance.collection('settings').doc('story_settings').set({
+          'isStoryVisible': true,
+          'isBannerVisible': true,
+          'isAnnouncementVisible': true,
+        });
+      }
+      notifyListeners();
+    });
+
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         _initUserData(user.uid);
@@ -38,6 +62,27 @@ class AppProvider extends ChangeNotifier {
         _clearUserData();
       }
     });
+  }
+
+  Future<void> toggleStoryVisibility(bool isVisible) async {
+    await FirebaseFirestore.instance.collection('settings').doc('story_settings').set(
+      {'isStoryVisible': isVisible},
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> toggleBannerVisibility(bool isVisible) async {
+    await FirebaseFirestore.instance.collection('settings').doc('story_settings').set(
+      {'isBannerVisible': isVisible},
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> toggleAnnouncementVisibility(bool isVisible) async {
+    await FirebaseFirestore.instance.collection('settings').doc('story_settings').set(
+      {'isAnnouncementVisible': isVisible},
+      SetOptions(merge: true),
+    );
   }
 
   void _initUserData(String uid) {

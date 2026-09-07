@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_provider.dart';
 import '../constants/moka_colors.dart';
 
 class ReviewsAndAnnouncementWidget extends StatefulWidget {
@@ -335,57 +337,58 @@ class _ReviewsAndAnnouncementWidgetState extends State<ReviewsAndAnnouncementWid
           const SizedBox(height: 20),
 
           // 3. Haftanın Duyurusu Banner (31. Görsel)
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('settings').doc('announcement').snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              
-              String title = "Canlı Akustik Müzik Akşamları!";
-              String description = "Taze kahve kokusu eşliğinde müzik keyfi sizi bekliyor.";
-              
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final data = snapshot.data!.data() as Map<String, dynamic>;
-                title = data['title'] ?? title;
-                description = data['description'] ?? description;
-              }
+          if (context.watch<AppProvider>().isAnnouncementVisible)
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('settings').doc('announcement').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                String title = "Canlı Akustik Müzik Akşamları!";
+                String description = "Taze kahve kokusu eşliğinde müzik keyfi sizi bekliyor.";
+                
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>;
+                  title = data['title'] ?? title;
+                  description = data['description'] ?? description;
+                }
 
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: MokaColors.darkEspresso,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: MokaColors.primary.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: MokaColors.accent.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: MokaColors.darkEspresso,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: MokaColors.primary.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: MokaColors.accent.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.campaign, color: MokaColors.accent, size: 28),
                       ),
-                      child: const Icon(Icons.campaign, color: MokaColors.accent, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("HAFTANIN DUYURUSU", style: TextStyle(color: MokaColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, height: 1.2)),
-                          const SizedBox(height: 4),
-                          Text(description, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("HAFTANIN DUYURUSU", style: TextStyle(color: MokaColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, height: 1.2)),
+                            const SizedBox(height: 4),
+                            Text(description, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
