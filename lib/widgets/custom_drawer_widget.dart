@@ -282,7 +282,7 @@ class CustomDrawerWidget extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
-                      WaiterDialogWidget.show(context);
+                      WaiterDialogWidget.show(context, activeTable);
                     },
                     icon: const Icon(Icons.pan_tool_alt, color: Colors.amber, size: 18),
                     label: Text("Garson Çağır ($activeTable)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),

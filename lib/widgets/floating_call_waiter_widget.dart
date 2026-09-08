@@ -29,8 +29,7 @@ class FloatingCallWaiterWidget extends StatelessWidget {
         top: false,
         child: ElevatedButton(
           onPressed: () {
-            // Butona tıklandığında eski uyarı yerine artık yeni tasarımımız olan Modalı açıyoruz!
-            WaiterDialogWidget.show(context);
+            WaiterDialogWidget.show(context, activeTable);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: MokaColors.primary,

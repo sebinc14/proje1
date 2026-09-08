@@ -16,6 +16,8 @@ import 'admin_gamification_screen.dart'; // Şans Çarkı yönetimi
 import 'admin_reports_screen.dart'; // Raporlama ekranı
 import '../main.dart'; // HomeScreen'e erişmek için
 
+import 'admin_waiter_calls_screen.dart'; // Garson Çağrıları
+
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
@@ -113,6 +115,21 @@ class AdminDashboardScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const AdminOrdersScreen()),
+                    );
+                  },
+                ),
+                
+                // YENİ: Garson Çağrıları (Garsonlar da görebilir)
+                _buildAdminCard(
+                  context,
+                  title: "Garson Çağrıları",
+                  subtitle: "Müşteri istekleri",
+                  icon: Icons.notifications_active,
+                  color: Colors.amber.shade700,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AdminWaiterCallsScreen()),
                     );
                   },
                 ),

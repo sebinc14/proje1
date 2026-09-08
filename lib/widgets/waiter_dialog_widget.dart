@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class WaiterDialogWidget {
-  static void show(BuildContext context) {
+  static void show(BuildContext context, String activeTable) {
     // Seçenekler listesi (İkonlar ve Başlıklar)
     final List<Map<String, dynamic>> options = [
       {"icon": Icons.local_cafe_outlined, "title": "Sipariş Vermek İstiyorum"},
@@ -49,7 +50,7 @@ class WaiterDialogWidget {
                             child: Icon(Icons.pan_tool_alt_outlined, color: Colors.amber.shade700, size: 28),
                           ),
                           const SizedBox(width: 12),
-                          // Başlık ve Masa 4 Etiketi
+                          // Başlık ve Masa Etiketi
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,7 +68,7 @@ class WaiterDialogWidget {
                                     border: Border.all(color: Colors.amber.shade600),
                                   ),
                                   child: Text(
-                                    "Masa 4",
+                                    activeTable,
                                     style: TextStyle(color: Colors.amber.shade700, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ),
@@ -183,26 +184,56 @@ class WaiterDialogWidget {
                           Expanded(
                             flex: 6,
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context); // Dialog'u kapat
-                                
-                                // Başarılı bildirimini göster
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(
-                                      children: [
-                                        Icon(Icons.check_circle, color: Colors.white),
-                                        SizedBox(width: 12),
-                                        Expanded(child: Text("Masa 4 için personel yönlendiriliyor...")),
-                                      ],
+                              onPressed: () async {
+                                if (activeTable == "Seçilmedi" || activeTable.isEmpty) {
+                                  Navigator.pop(context); // Dialog'u kapat
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Lütfen garson çağırmadan önce bir masa seçiniz."),
+                                      backgroundColor: Colors.red,
+                                      duration: Duration(seconds: 3),
                                     ),
-                                    backgroundColor: Colors.green.shade600,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    margin: const EdgeInsets.all(16),
-                                    duration: const Duration(seconds: 3),
-                                  ),
-                                );
+                                  );
+                                  return; // İşlemi iptal et
+                                }
+
+                                final selectedOption = options[selectedIndex]["title"];
+                                final note = noteController.text.trim();
+                                
+                                // Firestore'a kaydet
+                                try {
+                                  await FirebaseFirestore.instance.collection('waiter_calls').add({
+                                    'table': activeTable,
+                                    'request': selectedOption,
+                                    'note': note,
+                                    'status': 'pending',
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                  });
+                                } catch (e) {
+                                  print("Garson çağrısı kaydedilemedi: $e");
+                                }
+
+                                if (context.mounted) {
+                                  Navigator.pop(context); // Dialog'u kapat
+                                  
+                                  // Başarılı bildirimini göster
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle, color: Colors.white),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: Text("$activeTable için personel yönlendiriliyor...")),
+                                        ],
+                                      ),
+                                      backgroundColor: Colors.green.shade600,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      margin: const EdgeInsets.all(16),
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
                               },
                               icon: const Icon(Icons.pan_tool_alt, color: Colors.white, size: 18),
                               label: const Text(
@@ -229,4 +260,4 @@ class WaiterDialogWidget {
       },
     );
   }
-}
+}
