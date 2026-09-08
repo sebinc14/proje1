@@ -23,13 +23,24 @@ class AdminOrdersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF6B4E3D);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF7),
-      appBar: AppBar(
-        title: const Text("Canlı Siparişler", style: TextStyle(color: Colors.white)),
-        backgroundColor: primaryColor,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFDFBF7),
+        appBar: AppBar(
+          title: const Text("Canlı Siparişler", style: TextStyle(color: Colors.white)),
+          backgroundColor: primaryColor,
+          iconTheme: const IconThemeData(color: Colors.white),
+          bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white60,
+            indicatorColor: Colors.white,
+            tabs: [
+              Tab(text: "Bekleyenler", icon: Icon(Icons.pending_actions)),
+              Tab(text: "Teslim Edilenler", icon: Icon(Icons.check_circle_outline)),
+            ],
+          ),
+        ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
@@ -46,10 +57,40 @@ class AdminOrdersScreen extends StatelessWidget {
             );
           }
 
-          final orders = snapshot.data!.docs;
+          final allOrders = snapshot.data!.docs;
+          
+          final pendingOrders = allOrders.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] as String? ?? '';
+            return status != 'Teslim Edildi';
+          }).toList();
+          
+          final completedOrders = allOrders.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] as String? ?? '';
+            return status == 'Teslim Edildi';
+          }).toList();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
+          return TabBarView(
+            children: [
+              _buildOrderList(context, pendingOrders, primaryColor),
+              _buildOrderList(context, completedOrders, primaryColor),
+            ],
+          );
+        },
+      ),
+    ));
+  }
+
+  Widget _buildOrderList(BuildContext context, List<QueryDocumentSnapshot> orders, Color primaryColor) {
+    if (orders.isEmpty) {
+      return const Center(
+        child: Text("Bu kategoride sipariş bulunmuyor.", style: TextStyle(fontSize: 16)),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
             itemCount: orders.length,
             itemBuilder: (context, index) {
               final order = orders[index];
@@ -113,7 +154,7 @@ class AdminOrdersScreen extends StatelessWidget {
                       if (deliveryType == "Kafede")
                         Row(
                           children: [
-                            const Icon(Icons.table_restaurant, size: 20, color: primaryColor),
+                            Icon(Icons.table_restaurant, size: 20, color: primaryColor),
                             const SizedBox(width: 8),
                             Text(
                               "Masa No: ${data['tableNumber'] ?? 'Belirtilmedi'}",
@@ -125,7 +166,7 @@ class AdminOrdersScreen extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.location_on, size: 20, color: primaryColor),
+                            Icon(Icons.location_on, size: 20, color: primaryColor),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -136,7 +177,7 @@ class AdminOrdersScreen extends StatelessWidget {
                           ],
                         ),
                       const Divider(height: 24, thickness: 1),
-                      const Text(
+                      Text(
                         "Sipariş İçeriği:",
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: primaryColor),
                       ),
@@ -234,8 +275,5 @@ class AdminOrdersScreen extends StatelessWidget {
               );
             },
           );
-        },
-      ),
-    );
   }
 }

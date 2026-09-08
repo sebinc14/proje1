@@ -67,4 +67,19 @@ class StockProvider extends ChangeNotifier {
     _ingredients.add(newIngredient);
     notifyListeners();
   }
+
+  // 5. Malzeme Silme
+  void removeIngredient(String id) {
+    _ingredients.removeWhere((i) => i.id == id);
+    notifyListeners();
+  }
+
+  // 6. Mevcut Malzemeye Stok Ekleme
+  void addStock(String id, double amount) {
+    final index = _ingredients.indexWhere((i) => i.id == id);
+    if (index != -1) {
+      _ingredients[index].currentStock += amount;
+      notifyListeners();
+    }
+  }
 }

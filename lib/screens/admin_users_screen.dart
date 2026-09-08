@@ -12,32 +12,25 @@ class AdminUsersScreen extends StatefulWidget {
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final String? currentUserUid = FirebaseAuth.instance.currentUser?.uid;
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+  late Stream<QuerySnapshot> _usersStream;
 
-  Future<void> _addWaiter() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) return;
+  @override
+  void initState() {
+    super.initState();
+    _usersStream = FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
 
-    try {
-      final query = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: email).get();
-      
-      if (query.docs.isNotEmpty) {
-        await query.docs.first.reference.update({'role': 'waiter'});
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$email hesabı Garson yapıldı."), backgroundColor: Colors.green));
-      } else {
-        await FirebaseFirestore.instance.collection('users').doc(email).set({
-          'email': email,
-          'role': 'waiter',
-          'firstName': 'Garson',
-          'lastName': 'Kullanıcısı',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$email sisteme Garson olarak eklendi."), backgroundColor: Colors.green));
-      }
-      _emailController.clear();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Hata: $e"), backgroundColor: Colors.red));
-    }
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _changeUserRole(String uid, String newRole) async {
@@ -92,7 +85,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).snapshots(),
+        stream: _usersStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: primaryColor));
@@ -105,10 +98,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           final users = snapshot.data!.docs;
           final totalUsers = users.length;
           final adminCount = users.where((doc) => (doc.data() as Map<String, dynamic>)['role'] == 'admin').length;
+          final waiterCount = users.where((doc) => (doc.data() as Map<String, dynamic>)['role'] == 'waiter').length;
 
           return Column(
             children: [
-              // Garson Ekleme Formu
+              // Kullanıcı Arama Formu
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 padding: const EdgeInsets.all(12),
@@ -117,26 +111,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          hintText: "E-posta adresi",
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                      onPressed: _addWaiter,
-                      child: const Text("Garson Ekle", style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: "Kullanıcı adı veya e-posta ara...",
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, color: primaryColor),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  keyboardType: TextInputType.text,
                 ),
               ),
 
@@ -157,6 +141,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     _buildStatItem("Toplam Üye", totalUsers.toString(), Icons.people),
                     Container(height: 40, width: 1, color: Colors.white30),
                     _buildStatItem("Admin Sayısı", adminCount.toString(), Icons.admin_panel_settings),
+                    Container(height: 40, width: 1, color: Colors.white30),
+                    _buildStatItem("Garson Sayısı", waiterCount.toString(), Icons.room_service),
                   ],
                 ),
               ),
@@ -174,6 +160,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ? "${data['firstName']} ${data['lastName']}" 
                         : (data['name'] ?? "Bilinmeyen Kullanıcı");
                     final String email = data['email'] ?? "E-posta yok";
+
+                    // Filtreleme
+                    if (_searchQuery.isNotEmpty) {
+                      if (!name.toLowerCase().contains(_searchQuery) && !email.toLowerCase().contains(_searchQuery)) {
+                        return const SizedBox.shrink(); // Eşleşmiyorsa boş döndür
+                      }
+                    }
+
                     final String role = data['role'] ?? "customer";
                     final bool isAdmin = role == 'admin';
                     final bool isCurrentUser = uid == currentUserUid;

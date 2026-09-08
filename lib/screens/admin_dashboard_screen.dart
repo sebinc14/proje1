@@ -12,6 +12,8 @@ import 'admin_announcement_screen.dart';
 import 'admin_tables_screen.dart'; // Masa yönetimi için
 import 'admin_users_screen.dart'; // Kullanıcı yönetimi için
 import 'stock_management_screen.dart'; // Stok yönetimi
+import 'admin_gamification_screen.dart'; // Şans Çarkı yönetimi
+import 'admin_reports_screen.dart'; // Raporlama ekranı
 import '../main.dart'; // HomeScreen'e erişmek için
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -32,49 +34,50 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF6B4E3D); // Moka Mola Kahverengisi
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF7),
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        title: const Text("Moka Mola - Admin Paneli ☕", style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.storefront, color: Colors.white),
-            onPressed: () {
-              // Uygulama (Müşteri) görünümüne geçiş
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
-              );
-            },
-            tooltip: "Müşteri Görünümüne Geç",
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AuthScreen()),
-                );
-              }
-            },
-            tooltip: "Çıkış Yap",
-          ),
-        ],
-      ),
-      body: FutureBuilder<String>(
-        future: _getUserRole(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final role = snapshot.data ?? 'user';
-          final isWaiter = role == 'waiter';
+    return FutureBuilder<String>(
+      future: _getUserRole(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        
+        final role = snapshot.data ?? 'user';
+        final isWaiter = role == 'waiter';
+        final title = isWaiter ? "Moka Mola - Garson Paneli ☕" : "Moka Mola - Yönetim Paneli ☕";
 
-          return Padding(
+        return Scaffold(
+          backgroundColor: const Color(0xFFFDFBF7),
+          appBar: AppBar(
+            backgroundColor: primaryColor,
+            title: Text(title, style: const TextStyle(color: Colors.white)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.storefront, color: Colors.white),
+                onPressed: () {
+                  // Uygulama (Müşteri) görünümüne geçiş
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                },
+                tooltip: "Müşteri Görünümüne Geç",
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AuthScreen()),
+                    );
+                  }
+                },
+                tooltip: "Çıkış Yap",
+              ),
+            ],
+          ),
+          body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: GridView.count(
               crossAxisCount: 2, // Yan yana 2 kart
@@ -195,6 +198,22 @@ class AdminDashboardScreen extends StatelessWidget {
                   ),
 
                 if (!isWaiter)
+                  // 8. Şans Çarkı Yönetimi
+                  _buildAdminCard(
+                    context,
+                    title: "Şans Çarkı Yönetimi",
+                    subtitle: "Çarkı aç/kapat",
+                    icon: Icons.attractions,
+                    color: Colors.amber.shade700,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdminGamificationScreen()),
+                      );
+                    },
+                  ),
+
+                if (!isWaiter)
                   // 8. Masa Yönetimi
                   _buildAdminCard(
                     context,
@@ -226,26 +245,41 @@ class AdminDashboardScreen extends StatelessWidget {
                     },
                   ),
 
+                // 10. Stok Yönetimi (Garsonlar da erişebilir)
+                _buildAdminCard(
+                  context,
+                  title: "Stok ve Zayi Yönetimi",
+                  subtitle: "Depo ve fireleri izle",
+                  icon: Icons.inventory,
+                  color: Colors.brown.shade400,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const StockManagementScreen()),
+                    );
+                  },
+                ),
+
                 if (!isWaiter)
-                  // 10. Stok Yönetimi
+                  // 11. Finans ve Raporlar
                   _buildAdminCard(
                     context,
-                    title: "Stok ve Zayi Yönetimi",
-                    subtitle: "Depo ve fireleri izle",
-                    icon: Icons.inventory,
-                    color: Colors.brown.shade400,
+                    title: "Finans ve Raporlar",
+                    subtitle: "Ciro ve satış analizi",
+                    icon: Icons.bar_chart,
+                    color: Colors.green.shade800,
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const StockManagementScreen()),
+                        MaterialPageRoute(builder: (context) => const AdminReportsScreen()),
                       );
                     },
                   ),
               ],
             ),
-          );
-        }
-      ),
+          ),
+        );
+      },
     );
   }
 

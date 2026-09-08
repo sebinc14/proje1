@@ -200,9 +200,10 @@ class CustomDrawerWidget extends StatelessWidget {
                     future: _getUserRole(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData && (snapshot.data == 'admin' || snapshot.data == 'waiter')) {
+                        final title = snapshot.data == 'admin' ? "Yönetim Paneli" : "Garson Paneli";
                         return _buildMenuItem(
                           icon: Icons.admin_panel_settings,
-                          title: "Yönetim Paneli",
+                          title: title,
                           iconColor: Colors.deepPurple,
                           onTap: () {
                             Navigator.pop(context); // Çekmeceyi kapat

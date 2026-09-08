@@ -35,10 +35,12 @@ class AppProvider extends ChangeNotifier {
   bool _isStoryVisible = true;
   bool _isBannerVisible = true;
   bool _isAnnouncementVisible = true;
+  bool _isGamificationVisible = true;
 
   bool get isStoryVisible => _isStoryVisible;
   bool get isBannerVisible => _isBannerVisible;
   bool get isAnnouncementVisible => _isAnnouncementVisible;
+  bool get isGamificationVisible => _isGamificationVisible;
 
   AppProvider() {
     _settingsSub = FirebaseFirestore.instance.collection('settings').doc('story_settings').snapshots().listen((doc) {
@@ -46,11 +48,13 @@ class AppProvider extends ChangeNotifier {
         _isStoryVisible = doc.data()?['isStoryVisible'] ?? true;
         _isBannerVisible = doc.data()?['isBannerVisible'] ?? true;
         _isAnnouncementVisible = doc.data()?['isAnnouncementVisible'] ?? true;
+        _isGamificationVisible = doc.data()?['isGamificationVisible'] ?? true;
       } else {
         FirebaseFirestore.instance.collection('settings').doc('story_settings').set({
           'isStoryVisible': true,
           'isBannerVisible': true,
           'isAnnouncementVisible': true,
+          'isGamificationVisible': true,
         });
       }
       notifyListeners();
@@ -82,6 +86,13 @@ class AppProvider extends ChangeNotifier {
   Future<void> toggleAnnouncementVisibility(bool isVisible) async {
     await FirebaseFirestore.instance.collection('settings').doc('story_settings').set(
       {'isAnnouncementVisible': isVisible},
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> toggleGamificationVisibility(bool isVisible) async {
+    await FirebaseFirestore.instance.collection('settings').doc('story_settings').set(
+      {'isGamificationVisible': isVisible},
       SetOptions(merge: true),
     );
   }

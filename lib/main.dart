@@ -27,7 +27,7 @@ import 'widgets/delivery_and_coupon_widget.dart';
 import 'widgets/flash_sale_widget.dart';
 import 'widgets/repeat_order_and_categories_widget.dart';
 import 'widgets/reviews_and_announcement_widget.dart';
-import 'widgets/cafe_video_widget.dart';
+import 'widgets/gamification_widget.dart';
 import 'widgets/floating_call_waiter_widget.dart';
 import 'widgets/custom_drawer_widget.dart';
 
@@ -225,8 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 32),
                   const ReviewsAndAnnouncementWidget(),
                   const SizedBox(height: 24),
-                  const CafeVideoWidget(),
-                  const SizedBox(height: 40), 
+                  if (context.watch<AppProvider>().isGamificationVisible)
+                    const GamificationWidget(),
+                  if (context.watch<AppProvider>().isGamificationVisible)
+                    const SizedBox(height: 40), 
                 ],
               ),
             ),

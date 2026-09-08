@@ -288,6 +288,22 @@ class CartModalWidget {
                                           final code = couponController.text.trim().toUpperCase();
                                           if (code.isEmpty) return;
                                           
+                                          int localDiscount = 0;
+                                          if (code == "CARK15") localDiscount = 15;
+                                          else if (code == "SANS10") localDiscount = 10;
+
+                                          if (localDiscount > 0) {
+                                              bool success = cart.applyCoupon(localDiscount, code);
+                                              if (context.mounted) {
+                                                if (success) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sürpriz İndirim uygulandı!'), backgroundColor: Colors.green));
+                                                } else {
+                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bu kuponu daha önce kullandınız.'), backgroundColor: Colors.red));
+                                                }
+                                              }
+                                              return;
+                                          }
+                                          
                                           final snapshot = await FirebaseFirestore.instance
                                               .collection('coupons')
                                               .where('code', isEqualTo: code)
