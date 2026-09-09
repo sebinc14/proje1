@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../utils/string_extensions.dart';
+import '../providers/user_provider.dart';
 import '../constants/moka_colors.dart';
 
 class ReviewsAndAnnouncementWidget extends StatefulWidget {
@@ -86,6 +88,26 @@ class _ReviewsAndAnnouncementWidgetState extends State<ReviewsAndAnnouncementWid
                     ),
                     const SizedBox(height: 16),
                     
+                    // Kullanıcı Profili (Yorumu Yapan)
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: MokaColors.primary.withOpacity(0.1),
+                          child: Text(
+                            context.watch<UserProvider>().avatarLetter,
+                            style: const TextStyle(color: MokaColors.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          context.watch<UserProvider>().formattedName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
                     // Yorum Metni
                     const Text("Yorumunuz", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
@@ -119,25 +141,19 @@ class _ReviewsAndAnnouncementWidgetState extends State<ReviewsAndAnnouncementWid
                         return;
                       }
 
-                      String firstName = "Misafir";
-                      String lastName = "";
-                      try {
-                        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-                        if (userDoc.exists) {
-                          final data = userDoc.data()!;
-                          firstName = data['firstName'] ?? "Misafir";
-                          lastName = data['lastName'] ?? "";
-                        }
-                      } catch (e) {
-                        // ignore error
-                      }
+                      final userProvider = context.read<UserProvider>();
+                      String firstName = userProvider.firstName.isEmpty ? "Misafir" : userProvider.firstName;
+                      String lastName = userProvider.lastName;
+                      String email = userProvider.email;
 
                       await FirebaseFirestore.instance.collection('reviews').add({
                         "firstName": firstName,
                         "lastName": lastName,
+                        "email": email,
                         "comment": commentText.trim(),
                         "rating": selectedRating.toDouble(),
                         "createdAt": FieldValue.serverTimestamp(),
+                        "isRead": false,
                       });
 
                       if (context.mounted) {
@@ -217,9 +233,10 @@ class _ReviewsAndAnnouncementWidgetState extends State<ReviewsAndAnnouncementWid
                   itemCount: reviews.length,
                   itemBuilder: (context, index) {
                     final rev = reviews[index].data() as Map<String, dynamic>;
-                    final firstName = rev['firstName'] ?? 'Misafir';
-                    final lastName = rev['lastName'] ?? '';
-                    final fullName = "$firstName $lastName".trim();
+                    final email = rev['email'] ?? '';
+                    final fullName = email.isNotEmpty ? "Kullanıcı" : "Misafir";
+                    final avatarInitial = fullName[0];
+                    
                     final comment = rev['comment'] ?? '';
                     final rating = (rev['rating'] ?? 5).toInt();
                     
@@ -241,7 +258,7 @@ class _ReviewsAndAnnouncementWidgetState extends State<ReviewsAndAnnouncementWid
                                   CircleAvatar(
                                     radius: 16, 
                                     backgroundColor: MokaColors.primary.withOpacity(0.1),
-                                    child: Text(firstName.isNotEmpty ? firstName[0].toUpperCase() : "M", style: const TextStyle(color: MokaColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    child: Text(avatarInitial, style: const TextStyle(color: MokaColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(child: Text(fullName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
@@ -299,7 +316,7 @@ class _ReviewsAndAnnouncementWidgetState extends State<ReviewsAndAnnouncementWid
                                 CircleAvatar(
                                   radius: 16, 
                                   backgroundColor: MokaColors.primary.withOpacity(0.1),
-                                  child: Text(firstName.isNotEmpty ? firstName[0].toUpperCase() : "M", style: const TextStyle(color: MokaColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  child: Text(avatarInitial, style: const TextStyle(color: MokaColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(

@@ -229,33 +229,60 @@ class _AdminFlashSalesScreenState extends State<AdminFlashSalesScreen> {
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: hasImage
-                        ? Image.network(
-                            data['imageUrl'], width: 50, height: 50, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(width: 50, height: 50, color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
-                          )
-                        : Container(width: 50, height: 50, color: Colors.grey.shade200, child: const Icon(Icons.local_fire_department)),
-                  ),
-                  title: Text(data['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("${data['description'] ?? ''}\nİndirim: %${data['discountPercentage'] ?? 0}"),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text("${data['oldPrice']} ₺", style: const TextStyle(fontSize: 12, decoration: TextDecoration.lineThrough, color: Colors.grey)),
-                          Text("${(data['price'] ?? 0).toStringAsFixed(2)} ₺", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green)),
-                        ],
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: hasImage
+                            ? Image.network(
+                                data['imageUrl'], width: 70, height: 70, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(width: 70, height: 70, color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+                              )
+                            : Container(width: 70, height: 70, color: Colors.grey.shade200, child: const Icon(Icons.local_fire_department)),
                       ),
-                      IconButton(icon: const Icon(Icons.edit, color: Colors.blueAccent), onPressed: () => _showAddModal(product)),
-                      IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () => _deleteProduct(product.id)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(data['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 4),
+                            Text(data['description'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text("İndirim: %${data['discountPercentage'] ?? 0}", style: const TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                Text("${data['oldPrice']} ₺", style: const TextStyle(fontSize: 12, decoration: TextDecoration.lineThrough, color: Colors.grey)),
+                                Text("${(data['price'] ?? 0).toStringAsFixed(2)} ₺", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                            icon: const Icon(Icons.edit, color: Colors.blueAccent, size: 22), 
+                            onPressed: () => _showAddModal(product)
+                          ),
+                          const SizedBox(height: 8),
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(4),
+                            icon: const Icon(Icons.delete, color: Colors.redAccent, size: 22), 
+                            onPressed: () => _deleteProduct(product.id)
+                          ),
+                        ],
+                      )
                     ],
                   ),
                 ),

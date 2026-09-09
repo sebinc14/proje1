@@ -172,35 +172,24 @@ class OrderHistoryModalWidget extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
-                                    // Yıldız Butonu
-                                    GestureDetector(
-                                      onTap: () async {
-                                        final currentRating = data['rating'] ?? 5;
-                                        final newRating = await ReviewModalWidget.show(context, initialRating: currentRating);
-                                        if (newRating != null) {
-                                          FirebaseFirestore.instance.collection('orders').doc(orderDoc.id).update({
-                                            'rating': newRating,
-                                          });
-                                        }
-                                      },
-                                      child: Container(
+                                    if (data.containsKey('rating')) ...[
+                                      Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          border: Border.all(color: Colors.amber),
+                                          color: Colors.amber.shade50,
                                           borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.amber.shade200),
                                         ),
                                         child: Row(
                                           children: [
-                                            const Icon(Icons.star, color: Colors.amber, size: 14),
+                                            const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
                                             const SizedBox(width: 4),
-                                            Text("${data['rating'] ?? 5}/5", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
+                                            Text("Puanın: ${data['rating']}", style: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.bold, fontSize: 11)),
                                           ],
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    
+                                      const SizedBox(width: 8),
+                                    ],
                                     // Tekrarla Butonu (Sepete Atar)
                                     GestureDetector(
                                       onTap: () {

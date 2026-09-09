@@ -131,7 +131,41 @@ class _GamificationWidgetState extends State<GamificationWidget> {
   }
 
   void _openWheelDialog() {
-    if (_isSpun || _isLoading) return;
+    if (_isLoading) return;
+
+    final cartProvider = context.read<CartProvider>();
+    final activePrizeData = cartProvider.activeGamificationPrize;
+    final hasSpunToday = cartProvider.hasSpunToday;
+
+    if (activePrizeData != null) {
+      Prize wonPrize = Prize(
+        activePrizeData['title'] ?? '',
+        Colors.blueAccent,
+        activePrizeData['actionType'] ?? 'none',
+        activePrizeData['actionData'],
+        activePrizeData['actionType'] == 'cart' ? Icons.card_giftcard : Icons.local_offer,
+      );
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            child: _SpinWheelDialog(
+              prizes: _dynamicPrizes,
+              initialWonPrize: wonPrize,
+              onWin: (p) {},
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    if (hasSpunToday) return;
 
     showDialog(
       context: context,
@@ -143,9 +177,11 @@ class _GamificationWidgetState extends State<GamificationWidget> {
           backgroundColor: Colors.transparent,
           child: _SpinWheelDialog(
             prizes: _dynamicPrizes,
-            onWin: () {
-              setState(() {
-                _isSpun = true;
+            onWin: (Prize wonPrize) {
+              cartProvider.setGamificationPrize({
+                'title': wonPrize.title,
+                'actionType': wonPrize.actionType,
+                'actionData': wonPrize.actionData,
               });
             },
           ),
@@ -156,6 +192,26 @@ class _GamificationWidgetState extends State<GamificationWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final cartProvider = context.watch<CartProvider>();
+    final bool hasSpun = cartProvider.hasSpunToday;
+    final bool hasActivePrize = cartProvider.activeGamificationPrize != null;
+
+    String titleText = _isLoading ? "Çark Hazırlanıyor..." : "Şans Çarkı";
+    String subtitleText = "Çarkı çevir, sürpriz indirimleri yakala!";
+    IconData iconData = Icons.attractions;
+
+    if (!_isLoading) {
+      if (hasActivePrize) {
+        titleText = "Hediyeniz Sizi Bekliyor!";
+        subtitleText = "Kazandığınız hediyeyi görüntülemek için tıklayın.";
+        iconData = Icons.card_giftcard;
+      } else if (hasSpun) {
+        titleText = "Çark Çevrildi!";
+        subtitleText = "Bugünkü şansınızı kullandınız.";
+        iconData = Icons.check_circle;
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: GestureDetector(
@@ -201,7 +257,7 @@ class _GamificationWidgetState extends State<GamificationWidget> {
                       child: _isLoading 
                         ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : Icon(
-                            _isSpun ? Icons.check_circle : Icons.attractions,
+                            iconData,
                             color: Colors.white,
                             size: 36,
                           ),
@@ -213,7 +269,7 @@ class _GamificationWidgetState extends State<GamificationWidget> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _isLoading ? "Çark Hazırlanıyor..." : (_isSpun ? "Çark Çevrildi!" : "Şans Çarkı"),
+                            titleText,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -222,9 +278,7 @@ class _GamificationWidgetState extends State<GamificationWidget> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            _isSpun
-                                ? "Bugünkü şansınızı kullandınız."
-                                : "Çarkı çevir, sürpriz indirimleri yakala!",
+                            subtitleText,
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.9),
                               fontSize: 13,
@@ -233,7 +287,7 @@ class _GamificationWidgetState extends State<GamificationWidget> {
                         ],
                       ),
                     ),
-                    if (!_isSpun && !_isLoading)
+                    if (!hasSpun && !_isLoading || hasActivePrize)
                       const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
                   ],
                 ),
@@ -258,9 +312,10 @@ class Prize {
 
 class _SpinWheelDialog extends StatefulWidget {
   final List<Prize> prizes;
-  final VoidCallback onWin;
+  final Function(Prize) onWin;
+  final Prize? initialWonPrize;
 
-  const _SpinWheelDialog({required this.prizes, required this.onWin});
+  const _SpinWheelDialog({required this.prizes, required this.onWin, this.initialWonPrize});
 
   @override
   State<_SpinWheelDialog> createState() => _SpinWheelDialogState();
@@ -282,13 +337,18 @@ class _SpinWheelDialogState extends State<_SpinWheelDialog> with SingleTickerPro
     );
     _animation = Tween<double>(begin: 0, end: 0).animate(_controller);
 
+    if (widget.initialWonPrize != null) {
+      _wonPrize = widget.initialWonPrize!;
+      _isFinished = true;
+    }
+
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
           _isSpinning = false;
           _isFinished = true;
         });
-        widget.onWin();
+        widget.onWin(_wonPrize);
       }
     });
   }
@@ -372,11 +432,20 @@ class _SpinWheelDialogState extends State<_SpinWheelDialog> with SingleTickerPro
                 if (_wonPrize.actionData == 'CARK15') discount = 15;
                 else if (_wonPrize.actionData == 'SANS10') discount = 10;
                 
-                context.read<CartProvider>().applyCoupon(discount, _wonPrize.actionData.toString());
+                String result = context.read<CartProvider>().applyCoupon(discount, _wonPrize.actionData.toString());
                 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("${_wonPrize.title} sepetinize otomatik uygulandı!"), backgroundColor: Colors.green),
-                );
+                if (result == "Başarılı") {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("${_wonPrize.title} sepetinize otomatik uygulandı!"), backgroundColor: Colors.green),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(result == "Kullanılmış" ? "Bu kuponu daha önce kullandınız." : result), backgroundColor: Colors.orange),
+                  );
+                  if (result == "Kullanılmış") {
+                    context.read<CartProvider>().clearGamificationPrize();
+                  }
+                }
                 Navigator.of(context).pop();
               },
             ),
@@ -423,6 +492,16 @@ class _SpinWheelDialogState extends State<_SpinWheelDialog> with SingleTickerPro
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {
+                final cartItems = context.read<CartProvider>().cartItems;
+                bool alreadyAdded = cartItems.any((item) => item['title'] == _wonPrize.actionData['title']);
+                if (alreadyAdded) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Bu hediye zaten sepetinizde!"), backgroundColor: Colors.orange),
+                  );
+                  Navigator.of(context).pop();
+                  return;
+                }
+                
                 context.read<CartProvider>().addToCart(Map<String, dynamic>.from(_wonPrize.actionData));
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("${_wonPrize.title} sepete eklendi!"), backgroundColor: Colors.green),
@@ -464,81 +543,94 @@ class _SpinWheelDialogState extends State<_SpinWheelDialog> with SingleTickerPro
         borderRadius: BorderRadius.circular(24),
         boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 10))],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          const Text(
-            "Şans Çarkı",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF6B4E3D)),
-          ),
-          const SizedBox(height: 24),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Şans Çarkı",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF6B4E3D)),
+              ),
+              const SizedBox(height: 24),
 
-          if (!_isFinished) ...[
-            Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: RotationTransition(
-                    turns: _animation,
-                    child: SizedBox(
-                      width: 220,
-                      height: 220,
-                      child: CustomPaint(
-                        painter: _WheelPainter(widget.prizes.map((p) => p.color).toList()),
-                        child: Stack(
-                          children: List.generate(widget.prizes.length, (index) {
-                            double angle = (index * 60 + 30) * pi / 180;
-                            return Align(
-                              alignment: Alignment(cos(angle) * 0.6, sin(angle) * 0.6),
-                              child: Transform.rotate(
-                                angle: angle + pi / 2, 
-                                child: Icon(widget.prizes[index].icon, color: Colors.white, size: 24),
-                              ),
-                            );
-                          }),
+              if (!_isFinished) ...[
+                Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: RotationTransition(
+                        turns: _animation,
+                        child: SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: CustomPaint(
+                            painter: _WheelPainter(widget.prizes.map((p) => p.color).toList()),
+                            child: Stack(
+                              children: List.generate(widget.prizes.length, (index) {
+                                double angle = (index * 60 + 30) * pi / 180;
+                                return Align(
+                                  alignment: Alignment(cos(angle) * 0.6, sin(angle) * 0.6),
+                                  child: Transform.rotate(
+                                    angle: angle + pi / 2, 
+                                    child: Icon(widget.prizes[index].icon, color: Colors.white, size: 24),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
                         ),
                       ),
                     ),
+                    const Icon(Icons.arrow_drop_down, size: 48, color: Color(0xFF6B4E3D)),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isSpinning ? Colors.grey : const Color(0xFF6B4E3D),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _isSpinning ? null : _spin,
+                    child: Text(
+                      _isSpinning ? "Çevriliyor..." : "Çevir!",
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-                const Icon(Icons.arrow_drop_down, size: 48, color: Color(0xFF6B4E3D)),
-              ],
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isSpinning ? Colors.grey : const Color(0xFF6B4E3D),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ] else ...[
+                Icon(_wonPrize.icon, color: _wonPrize.color, size: 60),
+                const SizedBox(height: 16),
+                Text(
+                  _wonPrize.actionType == 'none' ? "Şansına Küs!" : "Tebrikler!",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _wonPrize.actionType == 'none' ? Colors.grey : Colors.green),
                 ),
-                onPressed: _isSpinning ? null : _spin,
-                child: Text(
-                  _isSpinning ? "Çevriliyor..." : "Çevir!",
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                const SizedBox(height: 8),
+                Text(
+                  _wonPrize.actionType == 'none' 
+                    ? "Bir dahaki sefere daha şanslı olabilirsiniz." 
+                    : "${_wonPrize.title} kazandınız!",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
                 ),
-              ),
+                const SizedBox(height: 24),
+                _buildActionArea(),
+              ]
+            ],
+          ),
+          Positioned(
+            right: -16,
+            top: -16,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.black54),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-          ] else ...[
-            Icon(_wonPrize.icon, color: _wonPrize.color, size: 60),
-            const SizedBox(height: 16),
-            Text(
-              _wonPrize.actionType == 'none' ? "Şansına Küs!" : "Tebrikler!",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _wonPrize.actionType == 'none' ? Colors.grey : Colors.green),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _wonPrize.actionType == 'none' 
-                ? "Bir dahaki sefere daha şanslı olabilirsiniz." 
-                : "${_wonPrize.title} kazandınız!",
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Colors.black87),
-            ),
-            const SizedBox(height: 24),
-            _buildActionArea(),
-          ]
+          ),
         ],
       ),
     );

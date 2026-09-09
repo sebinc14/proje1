@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/user_provider.dart';
 import 'waiter_dialog_widget.dart';
 import 'cart_modal_widget.dart';
 import 'cafe_info_dialog_widget.dart';
@@ -33,6 +34,7 @@ class CustomDrawerWidget extends StatelessWidget {
     final activeTable = context.watch<AppProvider>().activeTable;
     final cartProvider = context.watch<CartProvider>();
     final appProvider = context.watch<AppProvider>();
+    final userProvider = context.watch<UserProvider>();
     final activeColor = const Color(0xFF6B4E3D);
 
     int currentStamps = cartProvider.loyaltyStamps;
@@ -77,37 +79,23 @@ class CustomDrawerWidget extends StatelessWidget {
           Container(
             padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, left: 16, right: 16, bottom: 20),
             decoration: BoxDecoration(color: activeColor),
-            child: FutureBuilder<DocumentSnapshot?>(
-              future: FirebaseAuth.instance.currentUser != null 
-                  ? FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get()
-                  : Future<DocumentSnapshot?>.value(null),
-              builder: (context, snapshot) {
-                String fullName = "Kullanıcı";
-                if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
-                  final data = snapshot.data!.data() as Map<String, dynamic>;
-                  String fName = data['firstName'] ?? data['name'] ?? '';
-                  String lName = data['lastName'] ?? '';
-                  if (fName.isNotEmpty || lName.isNotEmpty) {
-                    fullName = "$fName $lName".trim();
-                  }
-                } else if (FirebaseAuth.instance.currentUser != null) {
-                  fullName = FirebaseAuth.instance.currentUser!.displayName ?? "Kullanıcı";
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2), color: Colors.white24),
-                      child: const Icon(Icons.person_rounded, size: 36, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(fullName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2), color: Colors.white24),
+                  child: Text(
+                    userProvider.avatarLetter,
+                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(userProvider.formattedName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 2),
                           const Text("Lezzet ve Keyif Noktası", style: TextStyle(color: Colors.white70, fontSize: 11)),
                           const SizedBox(height: 8),
@@ -134,9 +122,7 @@ class CustomDrawerWidget extends StatelessWidget {
                       child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.close, color: Colors.white, size: 16)),
                     )
                   ],
-                );
-              }
-            ),
+                ),
           ),
 
           // 2. KAYDIRILABİLİR İÇERİK ALANI

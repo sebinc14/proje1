@@ -64,8 +64,8 @@ class QualityAndProductsWidget extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.72,
-                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.78,
+                    crossAxisSpacing: 12,
                     mainAxisSpacing: 16,
                   ),
                   itemCount: filteredProducts.length,
@@ -166,14 +166,14 @@ class QualityAndProductsWidget extends StatelessWidget {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                const SizedBox(height: 4),
+                                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                const SizedBox(height: 2),
                                 Text(description, style: const TextStyle(color: Colors.grey, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                const SizedBox(height: 12),
+                                const Spacer(),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -202,7 +202,7 @@ class QualityAndProductsWidget extends StatelessWidget {
                                         }
                                       },
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                         decoration: BoxDecoration(border: Border.all(color: Colors.amber), borderRadius: BorderRadius.circular(12)),
                                         child: const Text("+ Ekle", style: TextStyle(color: MokaColors.darkEspresso, fontWeight: FontWeight.bold, fontSize: 11)),
                                       ),

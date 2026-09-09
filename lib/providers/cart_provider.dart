@@ -24,6 +24,10 @@ class CartProvider extends ChangeNotifier {
   String _appliedCouponCode = "";
   String _lastOrderId = "";
 
+  Map<String, dynamic>? _activeGamificationPrize;
+  bool _hasSpunToday = false;
+  DateTime? _lastSpinTimestamp;
+
   StreamSubscription? _cartSub;
 
   CartProvider() {
@@ -44,11 +48,25 @@ class CartProvider extends ChangeNotifier {
         _usedCoupons = List<String>.from(data['usedCoupons'] ?? []);
         _loyaltyStamps = data['loyaltyStamps'] ?? 3;
         _totalMokaPoints = (data['totalMokaPoints'] ?? 120.0).toDouble();
+        _activeGamificationPrize = data['activeGamificationPrize'] as Map<String, dynamic>?;
+        
+        // 24 saat kontrolü
+        _hasSpunToday = data['hasSpunToday'] ?? false;
+        if (data['lastSpinTimestamp'] != null) {
+          _lastSpinTimestamp = (data['lastSpinTimestamp'] as Timestamp).toDate();
+          if (DateTime.now().difference(_lastSpinTimestamp!).inHours >= 24) {
+            _hasSpunToday = false;
+            _activeGamificationPrize = null; // Eski hediyeyi sıfırla
+          }
+        }
       } else {
         _cartItems = [];
         _usedCoupons = [];
         _loyaltyStamps = 3;
         _totalMokaPoints = 120.0;
+        _activeGamificationPrize = null;
+        _hasSpunToday = false;
+        _lastSpinTimestamp = null;
       }
       _checkEmptyCart();
       notifyListeners();
@@ -68,6 +86,9 @@ class CartProvider extends ChangeNotifier {
     _lastOrderId = "";
     _lastOrderItems = [];
     _lastOrderTotal = 0.0;
+    _activeGamificationPrize = null;
+    _hasSpunToday = false;
+    _lastSpinTimestamp = null;
     notifyListeners();
   }
 
@@ -85,6 +106,9 @@ class CartProvider extends ChangeNotifier {
         'usedCoupons': _usedCoupons,
         'loyaltyStamps': _loyaltyStamps,
         'totalMokaPoints': _totalMokaPoints,
+        'activeGamificationPrize': _activeGamificationPrize,
+        'hasSpunToday': _hasSpunToday,
+        'lastSpinTimestamp': _lastSpinTimestamp != null ? Timestamp.fromDate(_lastSpinTimestamp!) : null,
       }, SetOptions(merge: true));
     }
   }
@@ -101,6 +125,28 @@ class CartProvider extends ChangeNotifier {
   int get appliedDiscountPercentage => _appliedDiscountPercentage;
   String get appliedCouponCode => _appliedCouponCode;
   String get lastOrderId => _lastOrderId;
+  Map<String, dynamic>? get activeGamificationPrize => _activeGamificationPrize;
+  bool get hasSpunToday => _hasSpunToday;
+
+  void setGamificationPrize(Map<String, dynamic> prize) {
+    _activeGamificationPrize = prize;
+    _hasSpunToday = true;
+    _lastSpinTimestamp = DateTime.now();
+    _syncToFirestore();
+    notifyListeners();
+  }
+
+  void clearGamificationPrize() {
+    _activeGamificationPrize = null;
+    _syncToFirestore();
+    notifyListeners();
+  }
+
+  void setHasSpunToday(bool value) {
+    _hasSpunToday = value;
+    _syncToFirestore();
+    notifyListeners();
+  }
 
   bool _areExtrasEqual(List<dynamic>? extrasA, List<dynamic>? extrasB) {
     if (extrasA == null && extrasB == null) return true;
@@ -130,6 +176,7 @@ class CartProvider extends ChangeNotifier {
       product["quantity"] = addedQuantity;
       _cartItems.add(product);
     }
+    
     _syncToFirestore();
     notifyListeners();
     return true;
@@ -181,18 +228,19 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  bool applyCoupon(int discountPercentage, [String code = '']) {
+  String applyCoupon(int discountPercentage, [String code = '']) {
     if (_usedCoupons.contains(code)) {
-      return false; // Kupon daha önce kullanılmış
+      return "Kullanılmış"; // Kupon daha önce kullanılmış
     }
     if (_cartItems.isNotEmpty) {
       _isCouponApplied = true;
       _appliedDiscountPercentage = discountPercentage;
       _appliedCouponCode = code;
+      
       notifyListeners();
-      return true;
+      return "Başarılı";
     }
-    return false;
+    return "Sepet Boş";
   }
 
   void removeCoupon() {
@@ -251,6 +299,26 @@ class CartProvider extends ChangeNotifier {
       if (_isCouponApplied && _appliedCouponCode.isNotEmpty) {
         if (!_usedCoupons.contains(_appliedCouponCode)) {
           _usedCoupons.add(_appliedCouponCode);
+          await _syncToFirestore();
+        }
+      }
+      
+      if (_activeGamificationPrize != null) {
+        bool prizeUsed = false;
+        if (_activeGamificationPrize!['actionType'] == 'code') {
+          if (_isCouponApplied && _appliedCouponCode == _activeGamificationPrize!['actionData']) {
+            prizeUsed = true;
+          }
+        } else if (_activeGamificationPrize!['actionType'] == 'cart') {
+          final prizeData = _activeGamificationPrize!['actionData'];
+          if (prizeData != null) {
+            if (_cartItems.any((item) => item['title'] == prizeData['title'])) {
+              prizeUsed = true;
+            }
+          }
+        }
+        if (prizeUsed) {
+          _activeGamificationPrize = null;
           await _syncToFirestore();
         }
       }

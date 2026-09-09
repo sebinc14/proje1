@@ -129,8 +129,8 @@ class DeliveryAndCouponWidget extends StatelessWidget {
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () {
-                            bool success = context.read<CartProvider>().applyCoupon(discountPercentage, code);
-                            if (success) {
+                            String result = context.read<CartProvider>().applyCoupon(discountPercentage, code);
+                            if (result == "Başarılı") {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('$code kuponu sepete uygulandı!'),

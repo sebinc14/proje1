@@ -11,6 +11,7 @@ import 'admin_reviews_screen.dart';
 import 'admin_announcement_screen.dart';
 import 'admin_tables_screen.dart'; // Masa yönetimi için
 import 'admin_users_screen.dart'; // Kullanıcı yönetimi için
+import 'admin_order_ratings_screen.dart'; // Sipariş değerlendirmeleri
 import 'stock_management_screen.dart'; // Stok yönetimi
 import 'admin_gamification_screen.dart'; // Şans Çarkı yönetimi
 import 'admin_reports_screen.dart'; // Raporlama ekranı
@@ -81,8 +82,72 @@ class AdminDashboardScreen extends StatelessWidget {
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: GridView.count(
-              crossAxisCount: 2, // Yan yana 2 kart
+            child: Column(
+              children: [
+                if (!isWaiter)
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('admin_alerts').where('isRead', isEqualTo: false).snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                                const SizedBox(width: 8),
+                                const Text("Kritik Müşteri Bildirimleri", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                  child: Text("${snapshot.data!.docs.length}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ...snapshot.data!.docs.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.star, color: Colors.amber, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text("${data['rating']}/5", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(data['message'] ?? '', style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () => FirebaseFirestore.instance.collection('admin_alerts').doc(doc.id).update({'isRead': true}),
+                                    )
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2, // Yan yana 2 kart
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: 0.85, // Kartların biraz daha uzun olması için (yazıların sığması için)
@@ -184,16 +249,52 @@ class AdminDashboardScreen extends StatelessWidget {
 
                 if (!isWaiter)
                   // 6. Yorum Yönetimi
-                  _buildAdminCard(
-                    context,
-                    title: "Yorum Yönetimi",
-                    subtitle: "Müşteri yorumlarını denetle",
-                    icon: Icons.rate_review,
-                    color: Colors.indigo.shade600,
-                    onTap: () {
-                      Navigator.push(
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('reviews').where('isRead', isEqualTo: false).snapshots(),
+                    builder: (context, snapshot) {
+                      int unreadCount = 0;
+                      if (snapshot.hasData) {
+                        unreadCount = snapshot.data!.docs.length;
+                      }
+                      return _buildAdminCard(
                         context,
-                        MaterialPageRoute(builder: (context) => const AdminReviewsScreen()),
+                        title: "Yorum Yönetimi",
+                        subtitle: "Müşteri yorumlarını denetle",
+                        icon: Icons.rate_review,
+                        color: Colors.indigo.shade600,
+                        badgeCount: unreadCount,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AdminReviewsScreen()),
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                if (!isWaiter)
+                  // Sipariş Değerlendirmeleri
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('orders').where('isRatingRead', isEqualTo: false).snapshots(),
+                    builder: (context, snapshot) {
+                      int unreadCount = 0;
+                      if (snapshot.hasData) {
+                        unreadCount = snapshot.data!.docs.length;
+                      }
+                      return _buildAdminCard(
+                        context,
+                        title: "Sipariş Değerlendirmeleri",
+                        subtitle: "Ürün ve sipariş puanları",
+                        icon: Icons.star_half,
+                        color: Colors.amber.shade800,
+                        badgeCount: unreadCount,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AdminOrderRatingsScreen()),
+                          );
+                        },
                       );
                     },
                   ),
@@ -294,9 +395,12 @@ class AdminDashboardScreen extends StatelessWidget {
                   ),
               ],
             ),
-          ),
-        );
-      },
+          ), // Close Expanded
+        ],
+      ), // Close Column
+    ), // Close Padding
+  ); // Close Scaffold
+},
     );
   }
 
@@ -308,6 +412,7 @@ class AdminDashboardScreen extends StatelessWidget {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    int badgeCount = 0,
   }) {
     return InkWell(
       onTap: onTap,
@@ -330,13 +435,38 @@ class AdminDashboardScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 28, color: color),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 28, color: color),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        badgeCount > 9 ? '9+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const Spacer(),
             Text(

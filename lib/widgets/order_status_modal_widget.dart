@@ -3,12 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/moka_colors.dart';
 import '../providers/cart_provider.dart';
+import 'animated_rating_modal.dart';
 
 class OrderStatusModalWidget {
-  static void showStatus(BuildContext context) {
+  static void showStatus(BuildContext parentContext) {
     showDialog(
-      context: context,
-      builder: (context) {
+      context: parentContext,
+      builder: (dialogContext) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -28,7 +29,7 @@ class OrderStatusModalWidget {
                         children: [
                           const Text("Anlık Sipariş Durumu", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                           GestureDetector(
-                            onTap: () => Navigator.pop(context),
+                            onTap: () => Navigator.pop(dialogContext),
                             child: const Icon(Icons.close, color: Colors.grey, size: 20),
                           ),
                         ],
@@ -42,7 +43,7 @@ class OrderStatusModalWidget {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => Navigator.pop(dialogContext),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: MokaColors.darkEspresso,
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -109,7 +110,7 @@ class OrderStatusModalWidget {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => Navigator.pop(context),
+                              onTap: () => Navigator.pop(dialogContext),
                               child: const Icon(Icons.close, color: Colors.grey, size: 20),
                             ),
                           ],
@@ -280,10 +281,17 @@ class OrderStatusModalWidget {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () {
+                              final orderId = cartProvider.lastOrderId;
+                              final orderItems = cartProvider.lastOrderItems;
                               if (isReady) {
                                 cartProvider.clearLastOrder();
+                                Navigator.pop(dialogContext); // Close dialog
+                                Future.delayed(const Duration(milliseconds: 150), () {
+                                  AnimatedRatingModal.show(parentContext, orderId, orderItems);
+                                });
+                              } else {
+                                Navigator.pop(dialogContext);
                               }
-                              Navigator.pop(context);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: MokaColors.darkEspresso,

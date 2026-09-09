@@ -293,12 +293,12 @@ class CartModalWidget {
                                           else if (code == "SANS10") localDiscount = 10;
 
                                           if (localDiscount > 0) {
-                                              bool success = cart.applyCoupon(localDiscount, code);
+                                              String result = cart.applyCoupon(localDiscount, code);
                                               if (context.mounted) {
-                                                if (success) {
+                                                if (result == "Başarılı") {
                                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sürpriz İndirim uygulandı!'), backgroundColor: Colors.green));
                                                 } else {
-                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bu kuponu daha önce kullandınız.'), backgroundColor: Colors.red));
+                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result == "Kullanılmış" ? 'Bu kuponu daha önce kullandınız.' : result), backgroundColor: Colors.red));
                                                 }
                                               }
                                               return;
@@ -312,12 +312,12 @@ class CartModalWidget {
                                               
                                           if (snapshot.docs.isNotEmpty) {
                                               final data = snapshot.docs.first.data();
-                                              bool success = cart.applyCoupon(data['discountPercentage'] ?? 0, code);
+                                              String result = cart.applyCoupon(data['discountPercentage'] ?? 0, code);
                                               if (context.mounted) {
-                                                if (success) {
+                                                if (result == "Başarılı") {
                                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kupon uygulandı!'), backgroundColor: Colors.green));
                                                 } else {
-                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bu kuponu daha önce kullandınız.'), backgroundColor: Colors.red));
+                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result == "Kullanılmış" ? 'Bu kuponu daha önce kullandınız.' : result), backgroundColor: Colors.red));
                                                 }
                                               }
                                           } else {

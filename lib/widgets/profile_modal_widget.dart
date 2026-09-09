@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/cart_provider.dart';
+import '../providers/user_provider.dart';
 import '../constants/moka_colors.dart';
 
 class ProfileModalWidget extends StatelessWidget {
@@ -23,18 +24,21 @@ class ProfileModalWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cartProvider = context.watch<CartProvider>();
+    final userProvider = context.watch<UserProvider>();
     final int stamps = cartProvider.loyaltyStamps;
     final int totalPoints = cartProvider.totalMokaPoints.toInt();
 
     return Container(
       width: double.infinity,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           // HEADER SECTION
           Container(
             padding: const EdgeInsets.all(20),
@@ -45,57 +49,45 @@ class ProfileModalWidget extends StatelessWidget {
                 topRight: Radius.circular(24),
               ),
             ),
-            child: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseAuth.instance.currentUser != null 
-                  ? FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get()
-                  : Future.value(null),
-              builder: (context, snapshot) {
-                String fullName = "Kullanıcı";
-                if (snapshot.hasData && snapshot.data != null && snapshot.data!.exists) {
-                  final data = snapshot.data!.data() as Map<String, dynamic>;
-                  String fName = data['firstName'] ?? data['name'] ?? '';
-                  String lName = data['lastName'] ?? '';
-                  if (fName.isNotEmpty || lName.isNotEmpty) {
-                    fullName = "$fName $lName".trim();
-                  }
-                } else if (FirebaseAuth.instance.currentUser != null) {
-                  fullName = FirebaseAuth.instance.currentUser!.displayName ?? "Kullanıcı";
-                }
-
-                return Stack(
+            child: Stack(
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        // Avatar
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.amber, width: 2),
-                            color: Colors.white24,
-                          ),
-                          child: const Icon(Icons.person_rounded, size: 40, color: Colors.white),
+                    // Avatar
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.amber, width: 2),
+                        color: Colors.white24,
+                      ),
+                      child: Center(
+                        child: Text(
+                          userProvider.avatarLetter,
+                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(width: 16),
-                        // Info
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Info
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  fullName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.verified, color: Colors.amber, size: 18),
-                              ],
+                            Text(
+                              userProvider.formattedName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.verified, color: Colors.amber, size: 18),
+                          ],
+                        ),
                             const SizedBox(height: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -132,9 +124,7 @@ class ProfileModalWidget extends StatelessWidget {
                       ),
                     ),
                   ],
-                );
-              }
-            ),
+                ),
           ),
 
           // BODY SECTION
@@ -453,6 +443,7 @@ class ProfileModalWidget extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

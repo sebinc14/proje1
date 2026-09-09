@@ -16,6 +16,8 @@ import 'providers/app_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/stock_provider.dart';
 
+import 'providers/user_provider.dart';
+
 // Ekran ve Widget İmportları
 import 'screens/auth_screen.dart'; 
 import 'widgets/custom_header.dart';
@@ -46,6 +48,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => StockProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: const MokaMolaApp(),
     ),
@@ -382,6 +385,21 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${(widget.data['averageRating'] ?? 5.0).toStringAsFixed(1)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
+                          ),
+                          Text(
+                            " (${widget.data['ratingCount'] ?? 0})",
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       // Ürün Açıklaması
