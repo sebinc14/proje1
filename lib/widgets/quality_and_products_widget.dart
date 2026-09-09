@@ -78,12 +78,35 @@ class QualityAndProductsWidget extends StatelessWidget {
                     final description = product["description"] ?? "";
                     final isFavorite = appProvider.isFavorite(title);
 
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-                      ),
+                    return GestureDetector(
+                      onTap: () {
+                        final isDessertOrSavory = category == "Tatlılar" || category == "Tuzlular";
+                        if (isDessertOrSavory) {
+                          bool added = context.read<CartProvider>().addToCart({
+                            "title": title,
+                            "price": price,
+                            "image": image,
+                            "category": category,
+                          });
+                          if (added) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("$title sepete eklendi!"),
+                                duration: const Duration(seconds: 1),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } else {
+                          CustomizationDialogWidget.showCustomization(context, productTitle: title, productPrice: product["price"].toString(), imageUrl: image, category: category);
+                        }
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+                        ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -191,6 +214,7 @@ class QualityAndProductsWidget extends StatelessWidget {
                           )
                         ],
                       ),
+                    ),
                     );
                   },
                 ),

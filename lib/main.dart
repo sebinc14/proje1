@@ -263,18 +263,47 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
     final productName = widget.data['name'] ?? '';
     final isFavorite = appProvider.isFavorite(productName);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 12,
-            spreadRadius: 2,
-          )
-        ],
-      ),
+    return GestureDetector(
+      onTap: () {
+        if (category == 'Sıcak Kahveler' || category == 'Soğuk Kahveler') {
+          CustomizationDialogWidget.showCustomization(
+            context,
+            productTitle: widget.data['name'] ?? '',
+            productPrice: widget.data['price'].toString(),
+            imageUrl: widget.data['imageUrl'],
+            category: category,
+          );
+        } else {
+          final productToAdd = {
+            "title": productName,
+            "price": "${widget.data['price']} TL",
+            "image": widget.data['imageUrl'] ?? '',
+            "category": category,
+          };
+          bool added = context.read<CartProvider>().addToCart(productToAdd);
+          if (added) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("${widget.data['name']} sepete eklendi! 🛒"),
+                duration: const Duration(seconds: 2),
+                backgroundColor: primaryColor,
+              ),
+            );
+          }
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.15),
+              blurRadius: 12,
+              spreadRadius: 2,
+            )
+          ],
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -446,6 +475,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -110,6 +110,29 @@ class _SearchWidgetState extends State<SearchWidget> {
                       final bool isDessertOrSavory = category == "Tatlılar" || category == "Atıştırmalıklar";
 
                       return ListTile(
+                        onTap: () {
+                          if (isDessertOrSavory) {
+                            bool added = context.read<CartProvider>().addToCart({
+                              "title": title,
+                              "price": price,
+                              "image": imageUrl,
+                              "category": category,
+                            });
+                            if (added) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("$title sepete eklendi!"), duration: const Duration(milliseconds: 900), backgroundColor: MokaColors.primary),
+                              );
+                            }
+                          } else {
+                            CustomizationDialogWidget.showCustomization(
+                              context, 
+                              productTitle: title, 
+                              productPrice: data['price'].toString(),
+                              imageUrl: imageUrl,
+                              category: category,
+                            );
+                          }
+                        },
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(8),

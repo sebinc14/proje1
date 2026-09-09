@@ -138,17 +138,43 @@ class _FlashSaleWidgetState extends State<FlashSaleWidget> {
                       final double discount = (data['discountPercentage'] ?? 0).toDouble();
                       final String image = data['imageUrl'] ?? 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=250&q=80';
 
-                      return Container(
-                        width: 130,
-                        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))
-                          ],
-                          border: Border.all(color: Colors.grey.shade100),
-                        ),
+                      return GestureDetector(
+                        onTap: () {
+                          final isDessert = category.toLowerCase().contains("tatlı");
+                          if (isDessert) {
+                            bool added = context.read<CartProvider>().addToCart({
+                              "title": title,
+                              "price": "${newPrice.toStringAsFixed(2)} TL",
+                              "image": image,
+                            });
+                            if (added) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("$title sepete eklendi!"),
+                                  duration: const Duration(seconds: 1),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } else {
+                            CustomizationDialogWidget.showCustomization(
+                              context, 
+                              productTitle: title, 
+                              productPrice: "${newPrice.toStringAsFixed(2)} TL"
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 130,
+                          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4))
+                            ],
+                            border: Border.all(color: Colors.grey.shade100),
+                          ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -250,6 +276,7 @@ class _FlashSaleWidgetState extends State<FlashSaleWidget> {
                             )
                           ],
                         ),
+                      ),
                       );
                     },
                   );

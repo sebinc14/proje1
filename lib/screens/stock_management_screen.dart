@@ -167,52 +167,69 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
           elevation: 2,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: isCritical ? Colors.red.shade100 : accentColor.withOpacity(0.2),
-                child: Icon(
-                  isCritical ? Icons.warning_rounded : Icons.kitchen_rounded, 
-                  color: isCritical ? Colors.red : primaryColor
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  backgroundColor: isCritical ? Colors.red.shade100 : accentColor.withOpacity(0.2),
+                  child: Icon(
+                    isCritical ? Icons.warning_rounded : Icons.kitchen_rounded, 
+                    color: isCritical ? Colors.red : primaryColor
+                  ),
                 ),
-              ),
-              title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Text(
-                'Kritik Seviye: ${item.criticalStockLevel} ${item.unit}',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(height: 4),
                       Text(
-                        '${item.currentStock.toStringAsFixed(1)} ${item.unit}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isCritical ? Colors.red : Colors.green.shade700,
-                          fontSize: 16,
-                        ),
+                        'Kritik: ${item.criticalStockLevel} ${item.unit}',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                       ),
-                      if (isCritical)
-                        const Text('Yetersiz!', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold))
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            '${item.currentStock.toStringAsFixed(1)} ${item.unit}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isCritical ? Colors.red : Colors.green.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (isCritical) ...[
+                            const SizedBox(width: 6),
+                            const Text('Yetersiz!', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: Icon(Icons.add_circle, color: primaryColor),
-                    onPressed: () => _showAddStockDialog(context, provider, item),
-                    tooltip: 'Stok Ekle',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _showDeleteConfirmDialog(context, provider, item),
-                    tooltip: 'Ürünü Sil',
-                  ),
-                ],
-              ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                      icon: Icon(Icons.add_circle, color: primaryColor, size: 28),
+                      onPressed: () => _showAddStockDialog(context, provider, item),
+                      tooltip: 'Stok Ekle',
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.delete, color: Colors.red, size: 26),
+                      onPressed: () => _showDeleteConfirmDialog(context, provider, item),
+                      tooltip: 'Ürünü Sil',
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         );

@@ -36,15 +36,25 @@ class BaristaSuggestionWidget extends StatelessWidget {
         final appProvider = context.watch<AppProvider>();
         final isFavorite = appProvider.isFavorite(name);
 
-        return Container(
-          width: double.infinity,
-          height: 160,
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: const Color(0xFF5D4037), // Kahverengi arka plan
-            boxShadow: const [
+        return GestureDetector(
+          onTap: () {
+            CustomizationDialogWidget.showCustomization(
+              context,
+              productTitle: name,
+              productPrice: price.toString(),
+              imageUrl: imageUrl,
+              category: "Barista Önerisi",
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            height: 160,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFF5D4037), // Kahverengi arka plan
+              boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
             ],
           ),
@@ -203,6 +213,7 @@ class BaristaSuggestionWidget extends StatelessWidget {
               ),
             ],
           ),
+        ),
         );
       },
     );
