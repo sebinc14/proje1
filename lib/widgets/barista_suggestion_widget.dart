@@ -44,6 +44,7 @@ class BaristaSuggestionWidget extends StatelessWidget {
               productPrice: price.toString(),
               imageUrl: imageUrl,
               category: "Barista Önerisi",
+              modifierGroups: data['modifierGroups'] as List<dynamic>?,
             );
           },
           child: Container(
@@ -185,6 +186,7 @@ class BaristaSuggestionWidget extends StatelessWidget {
                               productPrice: price.toString(),
                               imageUrl: imageUrl,
                               category: "Barista Önerisi",
+                              modifierGroups: data['modifierGroups'] as List<dynamic>?,
                             );
                           },
                           child: Container(

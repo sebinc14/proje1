@@ -213,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         physics: const NeverScrollableScrollPhysics(), 
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.53, // Tüm içeriklerin sığması ve kartların kusursuz hizalanması için uzatıldı
+                          childAspectRatio: 0.48, // Açıklamalar taşmasın diye daha da uzatıldı
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
                         ),
@@ -268,32 +268,14 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
 
     return GestureDetector(
       onTap: () {
-        if (category == 'Sıcak Kahveler' || category == 'Soğuk Kahveler') {
-          CustomizationDialogWidget.showCustomization(
-            context,
-            productTitle: widget.data['name'] ?? '',
-            productPrice: widget.data['price'].toString(),
-            imageUrl: widget.data['imageUrl'],
-            category: category,
-          );
-        } else {
-          final productToAdd = {
-            "title": productName,
-            "price": "${widget.data['price']} TL",
-            "image": widget.data['imageUrl'] ?? '',
-            "category": category,
-          };
-          bool added = context.read<CartProvider>().addToCart(productToAdd);
-          if (added) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("${widget.data['name']} sepete eklendi! 🛒"),
-                duration: const Duration(seconds: 2),
-                backgroundColor: primaryColor,
-              ),
-            );
-          }
-        }
+        CustomizationDialogWidget.showCustomization(
+          context,
+          productTitle: widget.data['name'] ?? '',
+          productPrice: widget.data['price'].toString(),
+          imageUrl: widget.data['imageUrl'],
+          category: category,
+          modifierGroups: widget.data['modifierGroups'] as List<dynamic>?,
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -403,14 +385,11 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
                       ),
                       const SizedBox(height: 4),
                       // Ürün Açıklaması
-                      SizedBox(
-                        height: 32, // Açıklama kısmı için sabit yükseklik (2 satır) - diğer kartlarla aynı hizada olması için
-                        child: Text(
-                          description,
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Text(
+                        description,
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if (widget.data['subCategory'] != null && widget.data['subCategory'].toString().isNotEmpty) ...[
                         const SizedBox(height: 6),
@@ -428,9 +407,6 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ] else ...[
-                        // Etiket yoksa bile aynı yüksekliği korumak için boş alan eklendi (kartların alt butonu aynı hizada kalsın diye)
-                        const SizedBox(height: 30), 
                       ],
                     ],
                   ),
@@ -446,32 +422,14 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          if (category == 'Sıcak Kahveler' || category == 'Soğuk Kahveler') {
-                            CustomizationDialogWidget.showCustomization(
-                              context,
-                              productTitle: widget.data['name'] ?? '',
-                              productPrice: widget.data['price'].toString(),
-                              imageUrl: widget.data['imageUrl'],
-                              category: category,
-                            );
-                          } else {
-                            final productToAdd = {
-                              "title": productName,
-                              "price": "${widget.data['price']} TL",
-                              "image": widget.data['imageUrl'] ?? '',
-                              "category": category,
-                            };
-                              bool added = context.read<CartProvider>().addToCart(productToAdd);
-                              if (added) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("${widget.data['name']} sepete eklendi! 🛒"),
-                                    duration: const Duration(seconds: 2),
-                                    backgroundColor: primaryColor,
-                                  ),
-                                );
-                              }
-                          }
+                          CustomizationDialogWidget.showCustomization(
+                            context,
+                            productTitle: widget.data['name'] ?? '',
+                            productPrice: widget.data['price'].toString(),
+                            imageUrl: widget.data['imageUrl'],
+                            category: category,
+                            modifierGroups: widget.data['modifierGroups'] as List<dynamic>?,
+                          );
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),

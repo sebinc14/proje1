@@ -172,6 +172,7 @@ class CartModalWidget {
                                                           editIndex: index,
                                                           initialRawCustomization: item["rawCustomization"],
                                                           initialQuantity: qty,
+                                                          modifierGroups: item["rawCustomization"]["modifierGroups"],
                                                         );
                                                       },
                                                       child: Container(

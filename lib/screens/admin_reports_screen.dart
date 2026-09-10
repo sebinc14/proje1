@@ -59,8 +59,20 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               .toSet() ?? {};
 
           return StreamBuilder<QuerySnapshot>(
-            stream: _getOrdersStream(),
-            builder: (context, snapshot) {
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, usersSnapshot) {
+              if (usersSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator(color: primaryColor));
+              }
+
+              final usersMap = {
+                for (var doc in usersSnapshot.data?.docs ?? [])
+                  doc.id: doc.data() as Map<String, dynamic>
+              };
+
+              return StreamBuilder<QuerySnapshot>(
+                stream: _getOrdersStream(),
+                builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator(color: primaryColor));
               }
@@ -74,6 +86,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           double totalRevenue = 0;
           int totalOrders = 0;
           Map<String, int> productSales = {};
+          Map<String, int> userOrderCount = {};
 
           for (var order in orders) {
             final data = order.data() as Map<String, dynamic>;
@@ -85,6 +98,12 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             }
             
             totalOrders++;
+            
+            // Kullanıcı sipariş sayısını hesaplama
+            final userId = data['userId'] as String?;
+            if (userId != null && userId.isNotEmpty) {
+              userOrderCount[userId] = (userOrderCount[userId] ?? 0) + 1;
+            }
             
             // Ciro hesaplama (totalAmount veya items üzerinden)
             if (data.containsKey('totalAmount')) {
@@ -121,6 +140,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
           // Grafiğin en geniş çubuğu için maksimum satış sayısı
           int maxSaleCount = sortedProducts.isNotEmpty ? sortedProducts.first.value : 1;
+
+          // En çok sipariş veren kullanıcılar
+          var sortedUsers = userOrderCount.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+            
+          if (sortedUsers.length > 5) {
+            sortedUsers = sortedUsers.take(5).toList();
+          }
+
+          int maxUserOrderCount = sortedUsers.isNotEmpty ? sortedUsers.first.value : 1;
 
           final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
 
@@ -196,6 +225,57 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                         ),
                   ),
                 ),
+                const SizedBox(height: 32),
+                
+                // En Çok Sipariş Veren Kullanıcılar Başlığı
+                const Text(
+                  "En Çok Sipariş Veren 5 Kullanıcı", 
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 16),
+                
+                // Yatay Çizgi Grafiği (Kullanıcılar)
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: sortedUsers.isEmpty 
+                      ? const Center(child: Text("Sipariş verisi bulunmuyor."))
+                      : Column(
+                          children: sortedUsers.map((entry) {
+                            String displayName = "Bilinmeyen Kullanıcı";
+                            if (usersMap.containsKey(entry.key)) {
+                              final uData = usersMap[entry.key]!;
+                              String namePart = "";
+                              
+                              if (uData['firstName'] != null && uData['lastName'] != null && uData['firstName'].toString().trim().isNotEmpty) {
+                                namePart = "${uData['firstName']} ${uData['lastName']}";
+                              } else if (uData['name'] != null && uData['name'].toString().trim().isNotEmpty) {
+                                namePart = uData['name'];
+                              }
+                              
+                              String emailPart = uData['email']?.toString().trim() ?? "";
+                              
+                              if (namePart.toLowerCase() == 'kullanıcı') {
+                                namePart = "";
+                              }
+                              
+                              if (namePart.isNotEmpty && emailPart.isNotEmpty) {
+                                displayName = "$namePart\n$emailPart";
+                              } else if (namePart.isNotEmpty) {
+                                displayName = namePart;
+                              } else if (emailPart.isNotEmpty) {
+                                displayName = emailPart;
+                              }
+                            } else {
+                              displayName = "Silinmiş Üye";
+                            }
+                            return _buildBarChartRow(displayName, entry.value, maxUserOrderCount, isUser: true);
+                          }).toList(),
+                        ),
+                  ),
+                ),
                 
               ],
             ),
@@ -203,8 +283,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         }
       );
     }
-  ),
-);
+  );
+        }
+      ),
+    );
   }
 
   Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
@@ -237,7 +319,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
-  Widget _buildBarChartRow(String productName, int amount, int maxAmount) {
+  Widget _buildBarChartRow(String productName, int amount, int maxAmount, {bool isUser = false}) {
     // Yüzdelik oran (Bar genişliği için)
     double ratio = (amount / maxAmount).clamp(0.0, 1.0);
     
@@ -247,11 +329,11 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
         children: [
           // Ürün Adı (Sabit genişlik)
           SizedBox(
-            width: 100,
+            width: isUser ? 120 : 100,
             child: Text(
               productName,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              maxLines: 2,
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: isUser ? 11 : 13),
+              maxLines: isUser ? 2 : 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -288,7 +370,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  "$amount Adet",
+                  "$amount ${isUser ? 'Sipariş' : 'Adet'}",
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ],

@@ -140,29 +140,14 @@ class _FlashSaleWidgetState extends State<FlashSaleWidget> {
 
                       return GestureDetector(
                         onTap: () {
-                          final isDessert = category.toLowerCase().contains("tatlı");
-                          if (isDessert) {
-                            bool added = context.read<CartProvider>().addToCart({
-                              "title": title,
-                              "price": "${newPrice.toStringAsFixed(2)} TL",
-                              "image": image,
-                            });
-                            if (added) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("$title sepete eklendi!"),
-                                  duration: const Duration(seconds: 1),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } else {
-                            CustomizationDialogWidget.showCustomization(
-                              context, 
-                              productTitle: title, 
-                              productPrice: "${newPrice.toStringAsFixed(2)} TL"
-                            );
-                          }
+                          CustomizationDialogWidget.showCustomization(
+                            context, 
+                            productTitle: title, 
+                            productPrice: "${newPrice.toStringAsFixed(2)} TL",
+                            category: category,
+                            imageUrl: image,
+                            modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                          );
                         },
                         child: Container(
                           width: 130,
@@ -239,29 +224,14 @@ class _FlashSaleWidgetState extends State<FlashSaleWidget> {
                                       // + BUTONUNA TIKLANINCA ÖZELLEŞTİRME MODALI AÇILIR (Tatlı değilse)
                                       GestureDetector(
                                         onTap: () {
-                                          final isDessert = category.toLowerCase().contains("tatlı");
-                                          if (isDessert) {
-                                            bool added = context.read<CartProvider>().addToCart({
-                                              "title": title,
-                                              "price": "${newPrice.toStringAsFixed(2)} TL",
-                                              "image": image,
-                                            });
-                                            if (added) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text("$title sepete eklendi!"),
-                                                  duration: const Duration(seconds: 1),
-                                                  backgroundColor: Colors.green,
-                                                ),
-                                              );
-                                            }
-                                          } else {
-                                            CustomizationDialogWidget.showCustomization(
-                                              context, 
-                                              productTitle: title, 
-                                              productPrice: "${newPrice.toStringAsFixed(2)} TL"
-                                            );
-                                          }
+                                          CustomizationDialogWidget.showCustomization(
+                                            context, 
+                                            productTitle: title, 
+                                            productPrice: "${newPrice.toStringAsFixed(2)} TL",
+                                            category: category,
+                                            imageUrl: image,
+                                            modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                                          );
                                         },
                                         child: Container(
                                           padding: const EdgeInsets.all(4),

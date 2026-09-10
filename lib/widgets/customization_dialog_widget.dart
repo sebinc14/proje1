@@ -11,6 +11,7 @@ class CustomizationDialogWidget extends StatefulWidget {
   final int? editIndex;
   final Map<String, dynamic>? initialRawCustomization;
   final int? initialQuantity;
+  final List<dynamic>? modifierGroups;
 
   const CustomizationDialogWidget({
     super.key,
@@ -21,6 +22,7 @@ class CustomizationDialogWidget extends StatefulWidget {
     this.editIndex,
     this.initialRawCustomization,
     this.initialQuantity,
+    this.modifierGroups,
   });
 
   static void showCustomization(BuildContext context, {
@@ -31,20 +33,22 @@ class CustomizationDialogWidget extends StatefulWidget {
     int? editIndex,
     Map<String, dynamic>? initialRawCustomization,
     int? initialQuantity,
+    List<dynamic>? modifierGroups,
   }) {
-    // Sadece sıcak ve soğuk kahvelerde özelleştirme göster
-    bool isCoffee = (category?.toUpperCase() == "SICAK KAHVELER" || 
-                     category?.toUpperCase() == "SOĞUK KAHVELER" || 
-                     category?.toUpperCase() == "SICAK KAHVE" || 
-                     category?.toUpperCase() == "SOĞUK KAHVE");
-
-    // Kahve değilse ve düzenleme işlemi değilse (yeni ekleniyorsa) direkt sepete at
-    if (!isCoffee && editIndex == null) {
+    // Özelleştirme grubu yoksa ve yeni ekleniyorsa direkt sepete at
+    if ((modifierGroups == null || modifierGroups.isEmpty) && editIndex == null) {
+      final pStr = productPrice.replaceAll(RegExp(r'[^0-9.]'), '');
+      final pDouble = double.tryParse(pStr) ?? 0.0;
       final productMap = {
         "title": productTitle,
         "price": productPrice.contains("TL") ? productPrice : "$productPrice TL",
         "quantity": initialQuantity ?? 1,
         "extras": [],
+        "rawCustomization": {
+           "basePrice": pDouble,
+           "selectedOptions": {},
+           "note": "",
+        }
       };
       bool added = context.read<CartProvider>().addToCart(productMap);
       if (added) {
@@ -66,6 +70,7 @@ class CustomizationDialogWidget extends StatefulWidget {
         editIndex: editIndex,
         initialRawCustomization: initialRawCustomization,
         initialQuantity: initialQuantity,
+        modifierGroups: modifierGroups,
       ),
     );
   }
@@ -76,74 +81,51 @@ class CustomizationDialogWidget extends StatefulWidget {
 
 class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
   late double basePrice;
-
-  // Seçim Durumları (State)
   int quantity = 1;
-  int selectedSizeIndex = 1; 
-  int selectedMilkIndex = 0;
-  int selectedSugarIndex = 0;
-  Set<int> selectedSyrups = {};
-  int extraShotCount = 0;
   TextEditingController noteController = TextEditingController();
 
-  // Veri Setleri
-  final List<Map<String, dynamic>> sizes = [
-    {"title": "Küçük", "price": 0.0, "sub": "Standart"},
-    {"title": "Orta", "price": 10.0, "sub": "+10.00 TL"},
-    {"title": "Büyük", "price": 18.0, "sub": "+18.00 TL"},
-  ];
-
-  final List<Map<String, dynamic>> milks = [
-    {"title": "Standart Süt", "price": 0.0, "sub": ""},
-    {"title": "Yağsız Süt", "price": 0.0, "sub": ""},
-    {"title": "Yulaf Sütü", "price": 15.0, "sub": "(+15 TL)"},
-    {"title": "Badem Sütü", "price": 18.0, "sub": "(+18 TL)"},
-    {"title": "Soya Sütü", "price": 15.0, "sub": "(+15 TL)"},
-    {"title": "Sütsüz", "price": 0.0, "sub": ""},
-  ];
-
-  final List<String> sugars = ["Şekersiz", "Az Şekerli", "Orta Şekerli", "Çok Şekerli"];
-
-  final List<Map<String, dynamic>> syrups = [
-    {"title": "Karamel Şurubu", "icon": "🍯"},
-    {"title": "Vanilya Şurubu", "icon": "🌼"},
-    {"title": "Fındık Şurubu", "icon": "🌰"},
-    {"title": "Belçika Çikolata Sosu", "icon": "🍫"},
-  ];
+  // state for modifiers
+  Map<int, dynamic> _selectedOptions = {};
 
   @override
   void initState() {
     super.initState();
     String pStr = widget.productPrice.replaceAll(RegExp(r'[^0-9.]'), '');
+    basePrice = double.tryParse(pStr) ?? 0.0;
     
     if (widget.initialQuantity != null) quantity = widget.initialQuantity!;
-    
+
+    if (widget.modifierGroups != null) {
+      for (int i = 0; i < widget.modifierGroups!.length; i++) {
+        final group = widget.modifierGroups![i];
+        if (group['type'] == 'checkbox') {
+          _selectedOptions[i] = <int>{};
+        } else {
+          _selectedOptions[i] = null;
+        }
+      }
+    }
+
     if (widget.initialRawCustomization != null) {
       final raw = widget.initialRawCustomization!;
-      
-      // Calculate extras total to reconstruct basePrice if it's missing
-      double extrasTotal = 0.0;
-      extrasTotal += sizes[raw['selectedSizeIndex'] ?? 1]["price"];
-      extrasTotal += milks[raw['selectedMilkIndex'] ?? 0]["price"];
-      Set<int> rawSyrups = Set<int>.from(raw['selectedSyrups'] ?? []);
-      extrasTotal += (rawSyrups.length * 12.0);
-      extrasTotal += ((raw['extraShotCount'] ?? 0) * 15.0);
-
       if (raw['basePrice'] != null) {
         basePrice = (raw['basePrice'] as num).toDouble();
-      } else {
-        double currentUnitPrice = double.tryParse(pStr) ?? 85.0;
-        basePrice = currentUnitPrice - extrasTotal;
       }
       
-      selectedSizeIndex = raw['selectedSizeIndex'] ?? 1;
-      selectedMilkIndex = raw['selectedMilkIndex'] ?? 0;
-      selectedSugarIndex = raw['selectedSugarIndex'] ?? 0;
-      selectedSyrups = rawSyrups;
-      extraShotCount = raw['extraShotCount'] ?? 0;
+      if (raw['selectedOptions'] != null) {
+        final savedOpts = raw['selectedOptions'] as Map;
+        savedOpts.forEach((k, v) {
+          final gIdx = int.tryParse(k.toString());
+          if (gIdx != null) {
+            if (v is List) {
+              _selectedOptions[gIdx] = Set<int>.from(v.map((e) => int.parse(e.toString())));
+            } else {
+              _selectedOptions[gIdx] = v != null ? int.parse(v.toString()) : null;
+            }
+          }
+        });
+      }
       noteController.text = raw['note'] ?? '';
-    } else {
-      basePrice = double.tryParse(pStr) ?? 85.0;
     }
   }
 
@@ -155,23 +137,57 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
 
   double get totalPrice {
     double total = basePrice;
-    total += sizes[selectedSizeIndex]["price"];
-    total += milks[selectedMilkIndex]["price"];
-    total += (selectedSyrups.length * 12.0); 
-    total += (extraShotCount * 15.0); 
+    if (widget.modifierGroups != null) {
+      for (int i = 0; i < widget.modifierGroups!.length; i++) {
+        final group = widget.modifierGroups![i];
+        final options = group['options'] as List;
+        final selected = _selectedOptions[i];
+        if (selected == null) continue;
+        
+        if (selected is Set<int>) {
+          for (int optIdx in selected) {
+            if (optIdx < options.length) {
+              total += (options[optIdx]['extraPrice'] as num).toDouble();
+            }
+          }
+        } else if (selected is int) {
+          if (selected < options.length) {
+            total += (options[selected]['extraPrice'] as num).toDouble();
+          }
+        }
+      }
+    }
     return total * quantity;
   }
 
+  bool get isValid => true;
+
   void _addToCart() {
+    if (!isValid) return;
+
     List<String> extras = [];
-    if (selectedSizeIndex != 0) extras.add(sizes[selectedSizeIndex]["title"]);
-    if (selectedMilkIndex != 0) extras.add(milks[selectedMilkIndex]["title"]);
-    if (selectedSugarIndex != 0) extras.add(sugars[selectedSugarIndex]);
-    for (int i in selectedSyrups) {
-      extras.add(syrups[i]["title"]);
+    if (widget.modifierGroups != null) {
+      for (int i = 0; i < widget.modifierGroups!.length; i++) {
+        final group = widget.modifierGroups![i];
+        final options = group['options'] as List;
+        final selected = _selectedOptions[i];
+        if (selected == null) continue;
+        
+        if (selected is Set<int>) {
+          for (int optIdx in selected) {
+            if (optIdx < options.length) extras.add(options[optIdx]['name']);
+          }
+        } else if (selected is int) {
+          if (selected < options.length) extras.add(options[selected]['name']);
+        }
+      }
     }
-    if (extraShotCount > 0) extras.add("$extraShotCount x Extra Shot");
     if (noteController.text.trim().isNotEmpty) extras.add("Not: ${noteController.text.trim()}");
+
+    final saveOptions = {};
+    _selectedOptions.forEach((k,v) {
+      saveOptions[k.toString()] = v is Set ? v.toList() : v;
+    });
 
     final productMap = {
       "title": widget.productTitle,
@@ -180,12 +196,9 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
       "extras": extras,
       "rawCustomization": {
          "basePrice": basePrice,
-         "selectedSizeIndex": selectedSizeIndex,
-         "selectedMilkIndex": selectedMilkIndex,
-         "selectedSugarIndex": selectedSugarIndex,
-         "selectedSyrups": selectedSyrups.toList(),
-         "extraShotCount": extraShotCount,
+         "selectedOptions": saveOptions,
          "note": noteController.text,
+         "modifierGroups": widget.modifierGroups,
       }
     };
 
@@ -219,7 +232,7 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
         child: Column(
           children: [
-            // 1. ÜST HEADER
+            // HEADER
             Stack(
               children: [
                 ClipRRect(
@@ -269,11 +282,12 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.amber.shade700, borderRadius: BorderRadius.circular(4)),
-                        child: Text((widget.category ?? "SICAK KAHVELER").toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
+                      if (widget.category != null && widget.category!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.amber.shade700, borderRadius: BorderRadius.circular(4)),
+                          child: Text(widget.category!.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
                       const SizedBox(height: 6),
                       Text(widget.productTitle, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                       Text("Taban Fiyat: ${basePrice.toStringAsFixed(2)} TL", style: const TextStyle(color: Colors.white70, fontSize: 12)),
@@ -283,167 +297,131 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
               ],
             ),
 
-            // 2. KAYDIRILABİLİR SEÇENEKLER ALANI
+            // DYNAMIC GROUPS
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle("1. BOYUT TERCİHİ"),
-                    Row(
-                      children: List.generate(sizes.length, (index) {
-                        bool isSelected = selectedSizeIndex == index;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => selectedSizeIndex = index),
-                            child: Container(
-                              margin: EdgeInsets.only(right: index == 2 ? 0 : 8),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected ? activeBg : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isSelected ? activeColor : Colors.grey.shade300, width: isSelected ? 1.5 : 1),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(sizes[index]["title"], style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? activeColor : Colors.black87)),
-                                  const SizedBox(height: 4),
-                                  Text(sizes[index]["sub"], style: TextStyle(fontSize: 11, color: isSelected ? activeColor : Colors.grey)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 20),
+                    if (widget.modifierGroups != null)
+                      ...widget.modifierGroups!.asMap().entries.map((entry) {
+                        final int gIdx = entry.key;
+                        final Map<String, dynamic> group = entry.value;
+                        final List options = group['options'] as List? ?? [];
+                        final bool isCheckbox = group['type'] == 'checkbox';
+                        final int maxSel = group['maxSelection'] ?? 1;
 
-                    _buildSectionTitle("2. SÜT SEÇENEĞİ"),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 4, crossAxisSpacing: 10, mainAxisSpacing: 10),
-                      itemCount: milks.length,
-                      itemBuilder: (context, index) {
-                        bool isSelected = selectedMilkIndex == index;
-                        return GestureDetector(
-                          onTap: () => setState(() => selectedMilkIndex = index),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: isSelected ? activeBg : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSelected ? activeColor : Colors.grey.shade300, width: isSelected ? 1.5 : 1),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text("${milks[index]["title"]} ${milks[index]["sub"]}", style: TextStyle(fontSize: 12, color: isSelected ? activeColor : Colors.black87)),
-                                if (isSelected) Icon(Icons.check, color: activeColor, size: 16)
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-
-                    _buildSectionTitle("3. ŞEKER SEVİYESİ"),
-                    Row(
-                      children: List.generate(sugars.length, (index) {
-                        bool isSelected = selectedSugarIndex == index;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => selectedSugarIndex = index),
-                            child: Container(
-                              margin: EdgeInsets.only(right: index == 3 ? 0 : 8),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isSelected ? activeBg : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: isSelected ? activeColor : Colors.grey.shade300, width: isSelected ? 1.5 : 1),
-                              ),
-                              child: Center(child: Text(sugars[index], style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? activeColor : Colors.black87))),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 20),
-
-                    _buildSectionTitle("4. İLAVE ŞURUPLAR (+12 TL)"),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 4, crossAxisSpacing: 10, mainAxisSpacing: 10),
-                      itemCount: syrups.length,
-                      itemBuilder: (context, index) {
-                        bool isSelected = selectedSyrups.contains(index);
-                        return GestureDetector(
-                          onTap: () => setState(() {
-                            isSelected ? selectedSyrups.remove(index) : selectedSyrups.add(index);
-                          }),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: isSelected ? activeBg : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSelected ? activeColor : Colors.grey.shade300, width: isSelected ? 1.5 : 1),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(syrups[index]["icon"]),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(syrups[index]["title"], style: TextStyle(fontSize: 12, color: isSelected ? activeColor : Colors.black87))),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Ekstra Espresso Shot (+15 TL)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              SizedBox(height: 2),
-                              Text("Daha yoğun kahve aroması için", style: TextStyle(color: Colors.grey, fontSize: 11)),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              InkWell(
-                                onTap: () => setState(() { if (extraShotCount > 0) extraShotCount--; }),
-                                child: const Icon(Icons.remove, color: Colors.grey, size: 20),
-                              ),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionTitle("${gIdx + 1}. ${(group['title'] ?? '').toString().toUpperCase()}" + (group['isRequired'] == true ? " *" : "")),
+                            if (isCheckbox && maxSel > 1) 
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Text("$extraShotCount", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Text("En fazla $maxSel seçim yapabilirsiniz.", style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                               ),
-                              InkWell(
-                                onTap: () => setState(() => extraShotCount++),
-                                child: const Icon(Icons.add, color: Colors.grey, size: 20),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                int columns = options.length == 3 ? 3 : 2;
+                                double spacing = 10.0;
+                                double itemWidth = (constraints.maxWidth - (spacing * (columns - 1))) / columns;
 
-                    _buildSectionTitle("BARİSTAYA ÖZEL NOT"),
+                                return Wrap(
+                                  spacing: spacing,
+                                  runSpacing: spacing,
+                                  children: options.asMap().entries.map((optEntry) {
+                                    final int oIdx = optEntry.key;
+                                    final option = optEntry.value;
+                                    final double extraP = (option['extraPrice'] as num).toDouble();
+                                    final String extraPStr = extraP > 0 ? "+${extraP.toStringAsFixed(2)} TL" : "";
+                                    
+                                    bool isSelected = false;
+                                    if (isCheckbox) {
+                                      final Set<int> selSet = _selectedOptions[gIdx] as Set<int>? ?? <int>{};
+                                      isSelected = selSet.contains(oIdx);
+                                    } else {
+                                      isSelected = _selectedOptions[gIdx] == oIdx;
+                                    }
+
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isCheckbox) {
+                                            final Set<int> selSet = _selectedOptions[gIdx] as Set<int>? ?? <int>{};
+                                            if (isSelected) {
+                                              selSet.remove(oIdx);
+                                            } else {
+                                              if (selSet.length < maxSel) selSet.add(oIdx);
+                                            }
+                                            _selectedOptions[gIdx] = selSet;
+                                          } else {
+                                            _selectedOptions[gIdx] = oIdx;
+                                          }
+                                        });
+                                      },
+                                      child: Container(
+                                        width: itemWidth,
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? activeBg : Colors.white,
+                                          border: Border.all(color: isSelected ? activeColor : Colors.grey.shade300, width: 1.5),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            if (isSelected && !isCheckbox)
+                                              Positioned(
+                                                top: -6,
+                                                right: -2,
+                                                child: Icon(Icons.check_circle, color: activeColor, size: 16),
+                                              ),
+                                            Center(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    option['name'], 
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                                      color: isSelected ? activeColor : Colors.black87,
+                                                      fontSize: options.length == 3 ? 12 : 13,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    extraPStr.isNotEmpty ? extraPStr : " ",
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: isSelected ? activeColor.withOpacity(0.8) : Colors.grey.shade500,
+                                                      fontSize: 11,
+                                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        );
+                      }).toList(),
+
+                    _buildSectionTitle("BARİSTAYA / ŞEFE ÖZEL NOT"),
                     TextField(
                       controller: noteController,
                       decoration: InputDecoration(
-                        hintText: "Örn: Ekstra sıcak olsun, kupa bardağa koyun...",
+                        hintText: "Örn: Ekstra sıcak olsun...",
                         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
                         contentPadding: const EdgeInsets.all(12),
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
@@ -456,7 +434,7 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
               ),
             ),
 
-            // 3. ALT BAR (Adet ve Sepete Ekle)
+            // BOTTOM BAR
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -490,13 +468,12 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // GÜNCELLENMİŞ "SEPETE EKLE" BUTONU (Ortalanmış Metin ve Yatay Padding)
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _addToCart,
+                      onPressed: isValid ? _addToCart : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: activeColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16), // Yatay Padding Eklendi
+                        backgroundColor: isValid ? activeColor : Colors.grey.shade400,
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: Row(
@@ -506,11 +483,12 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
                             widget.editIndex != null ? "Güncelle" : "Sepete Ekle", 
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                            child: Text("${totalPrice.toStringAsFixed(2)} TL", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                          )
+                          if (isValid)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                              child: Text("${totalPrice.toStringAsFixed(2)} TL", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                            )
                         ],
                       ),
                     ),

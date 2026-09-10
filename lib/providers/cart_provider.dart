@@ -353,6 +353,11 @@ class CartProvider extends ChangeNotifier {
           'address': isHomeDelivery ? deliveryAddress : null,
           'tableNumber': isHomeDelivery ? null : activeTable,
           'totalPrice': finalTotalPrice,
+          'subtotal': subtotal,
+          'couponCode': _isCouponApplied ? _appliedCouponCode : null,
+          'discountPercentage': _isCouponApplied ? _appliedDiscountPercentage : null,
+          'couponDiscountAmount': _isCouponApplied ? couponDiscountAmount : null,
+          'usedPointsAmount': _isPointsApplied ? usedPointsAmount : null,
           'items': _cartItems.map((item) {
             List<dynamic> extrasList = item['extras'] ?? [];
             return {
@@ -365,10 +370,56 @@ class CartProvider extends ChangeNotifier {
           }).toList(),
         };
 
-        final docRef = await FirebaseFirestore.instance.collection('orders').add(orderData);
-        _lastOrderId = docRef.id;
+        final db = FirebaseFirestore.instance;
+        final batch = db.batch();
+
+        for (var item in _cartItems) {
+          final productName = item['title']?.toString().split(' (')[0] ?? '';
+          final qty = item['quantity'] ?? 1;
+
+          final productQuery = await db.collection('products')
+              .where('name', isEqualTo: productName)
+              .limit(1)
+              .get();
+              
+          if (productQuery.docs.isNotEmpty) {
+            final productData = productQuery.docs.first.data();
+            final recipe = productData['recipe'] as List<dynamic>? ?? [];
+            
+            for (var recipeItem in recipe) {
+              final ingredientId = recipeItem['ingredientId'] as String;
+              final amountRequired = (recipeItem['amountRequired'] as num).toDouble() * qty;
+              
+              final ingredientRef = db.collection('ingredients').doc(ingredientId);
+              batch.update(ingredientRef, {
+                'currentStock': FieldValue.increment(-amountRequired)
+              });
+            }
+          }
+        }
+
+        if (_isCouponApplied && _appliedCouponCode.isNotEmpty) {
+          final couponQuery = await db.collection('coupons')
+              .where('code', isEqualTo: _appliedCouponCode)
+              .limit(1)
+              .get();
+              
+          if (couponQuery.docs.isNotEmpty) {
+            final couponDoc = couponQuery.docs.first;
+            final couponData = couponDoc.data();
+            if (couponData.containsKey('userId') && couponData['userId'] != null && couponData['userId'].toString().isNotEmpty) {
+              batch.update(couponDoc.reference, {'isActive': false});
+            }
+          }
+        }
+
+        final orderRef = db.collection('orders').doc();
+        batch.set(orderRef, orderData);
+        await batch.commit();
+        
+        _lastOrderId = orderRef.id;
       } catch (e) {
-        debugPrint("Sipariş Firestore'a yazılırken hata: $e");
+        debugPrint("Sipariş Firestore'a yazılırken veya stok düşülürken hata: \$e");
       }
 
       clearCart();

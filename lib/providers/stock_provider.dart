@@ -1,85 +1,106 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/stock_models.dart';
 
 class StockProvider extends ChangeNotifier {
-  // Mock Data
-  List<Ingredient> _ingredients = [
-    Ingredient(id: 'i1', name: 'Süt', currentStock: 15.0, criticalStockLevel: 5.0, unit: 'Litre'),
-    Ingredient(id: 'i2', name: 'Kahve Çekirdeği', currentStock: 2.0, criticalStockLevel: 3.0, unit: 'Kg'),
-    Ingredient(id: 'i3', name: 'Karton Bardak', currentStock: 150.0, criticalStockLevel: 50.0, unit: 'Adet'),
-  ];
-  
+  List<Ingredient> _ingredients = [];
   List<WasteRecord> _wasteRecords = [];
 
   List<Ingredient> get ingredients => _ingredients;
   List<WasteRecord> get wasteRecords => _wasteRecords;
 
-  // 1. Kritik Stok Kontrolü (Alerts)
+  StockProvider() {
+    _listenToIngredients();
+    _listenToWasteRecords();
+  }
+
+  void _listenToIngredients() {
+    FirebaseFirestore.instance.collection('ingredients').snapshots().listen((snapshot) {
+      _ingredients = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Ingredient(
+          id: doc.id,
+          name: data['name'] ?? '',
+          currentStock: (data['currentStock'] ?? 0).toDouble(),
+          criticalStockLevel: (data['criticalStockLevel'] ?? 0).toDouble(),
+          unit: data['unit'] ?? '',
+          needsStockUpdate: data['needsStockUpdate'] ?? false,
+        );
+      }).toList();
+      
+      _ingredients.sort((a, b) => a.name.compareTo(b.name));
+      notifyListeners();
+    });
+  }
+
+  void _listenToWasteRecords() {
+    FirebaseFirestore.instance.collection('waste_records').orderBy('date', descending: true).limit(50).snapshots().listen((snapshot) {
+      _wasteRecords = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return WasteRecord(
+          id: doc.id,
+          ingredientId: data['ingredientId'] ?? '',
+          amount: (data['amount'] ?? 0).toDouble(),
+          reason: data['reason'] ?? '',
+          date: data['date'] != null ? (data['date'] as Timestamp).toDate() : DateTime.now(),
+        );
+      }).toList();
+      notifyListeners();
+    });
+  }
+
   List<Ingredient> get criticalIngredients {
-    return _ingredients.where((i) => i.currentStock < i.criticalStockLevel).toList();
+    return _ingredients.where((i) => i.currentStock < i.criticalStockLevel || i.needsStockUpdate).toList();
   }
 
-  // 2. Satış İşlemi (Düşüm)
-  void recordSale(Product product) {
-    for (var recipeItem in product.recipe) {
-      final index = _ingredients.indexWhere((i) => i.id == recipeItem.ingredientId);
-      if (index != -1) {
-        _ingredients[index].currentStock -= recipeItem.amountRequired;
-        if (_ingredients[index].currentStock < 0) {
-          _ingredients[index].currentStock = 0; // Negatife düşmesini engelle
-        }
-      }
-    }
-    notifyListeners();
+  List<Ingredient> get warningIngredients {
+    return _ingredients.where((i) => i.currentStock >= i.criticalStockLevel && i.currentStock <= i.criticalStockLevel * 1.5 && !i.needsStockUpdate).toList();
   }
 
-  // 3. Zayi Kaydı
-  void recordWaste(String ingredientId, double amount, String reason) {
-    final index = _ingredients.indexWhere((i) => i.id == ingredientId);
-    if (index != -1) {
-      _ingredients[index].currentStock -= amount;
-      if (_ingredients[index].currentStock < 0) {
-        _ingredients[index].currentStock = 0;
-      }
-      
-      final record = WasteRecord(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        ingredientId: ingredientId,
-        amount: amount,
-        reason: reason,
-        date: DateTime.now(),
-      );
-      _wasteRecords.add(record);
-      
-      notifyListeners();
+  Future<void> recordWaste(String ingredientId, double amount, String reason) async {
+    final db = FirebaseFirestore.instance;
+    final batch = db.batch();
+
+    final wasteRef = db.collection('waste_records').doc();
+    batch.set(wasteRef, {
+      'ingredientId': ingredientId,
+      'amount': amount,
+      'reason': reason,
+      'date': FieldValue.serverTimestamp(),
+    });
+
+    final ingredientRef = db.collection('ingredients').doc(ingredientId);
+    batch.update(ingredientRef, {
+      'currentStock': FieldValue.increment(-amount)
+    });
+
+    try {
+      await batch.commit();
+    } catch (e) {
+      debugPrint("Zayi kaydı sırasında hata: \$e");
     }
   }
 
-  // 4. Yeni Malzeme Ekleme
-  void addIngredient(String name, double stock, double criticalLevel, String unit) {
-    final newIngredient = Ingredient(
-      id: 'i${DateTime.now().millisecondsSinceEpoch}',
-      name: name,
-      currentStock: stock,
-      criticalStockLevel: criticalLevel,
-      unit: unit,
-    );
-    _ingredients.add(newIngredient);
-    notifyListeners();
+  Future<void> addIngredient(String name, double stock, double criticalLevel, String unit) async {
+    await FirebaseFirestore.instance.collection('ingredients').add({
+      'name': name,
+      'currentStock': stock,
+      'criticalStockLevel': criticalLevel,
+      'unit': unit,
+      'needsStockUpdate': false,
+    });
   }
 
-  // 5. Malzeme Silme
-  void removeIngredient(String id) {
-    _ingredients.removeWhere((i) => i.id == id);
-    notifyListeners();
+  Future<void> removeIngredient(String id) async {
+    await FirebaseFirestore.instance.collection('ingredients').doc(id).delete();
   }
 
-  // 6. Mevcut Malzemeye Stok Ekleme
-  void addStock(String id, double amount) {
-    final index = _ingredients.indexWhere((i) => i.id == id);
-    if (index != -1) {
-      _ingredients[index].currentStock += amount;
-      notifyListeners();
-    }
+  Future<void> addStock(String id, double amount, double criticalLevel) async {
+    await FirebaseFirestore.instance.collection('ingredients').doc(id).update({
+      'currentStock': FieldValue.increment(amount),
+      'criticalStockLevel': criticalLevel,
+      'needsStockUpdate': false,
+    });
   }
 }
+

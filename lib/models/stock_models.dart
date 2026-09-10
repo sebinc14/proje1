@@ -4,6 +4,7 @@ class Ingredient {
   double currentStock;
   final double criticalStockLevel;
   final String unit;
+  final bool needsStockUpdate;
 
   Ingredient({
     required this.id,
@@ -11,6 +12,7 @@ class Ingredient {
     required this.currentStock,
     required this.criticalStockLevel,
     required this.unit,
+    this.needsStockUpdate = false,
   });
 }
 

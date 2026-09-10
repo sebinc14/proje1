@@ -107,31 +107,16 @@ class _SearchWidgetState extends State<SearchWidget> {
                       final String title = data['name'] ?? '';
                       final String price = "${data['price']} TL";
                       final String category = data['category'] ?? '';
-                      final bool isDessertOrSavory = category == "Tatlılar" || category == "Atıştırmalıklar";
-
                       return ListTile(
                         onTap: () {
-                          if (isDessertOrSavory) {
-                            bool added = context.read<CartProvider>().addToCart({
-                              "title": title,
-                              "price": price,
-                              "image": imageUrl,
-                              "category": category,
-                            });
-                            if (added) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("$title sepete eklendi!"), duration: const Duration(milliseconds: 900), backgroundColor: MokaColors.primary),
-                              );
-                            }
-                          } else {
-                            CustomizationDialogWidget.showCustomization(
-                              context, 
-                              productTitle: title, 
-                              productPrice: data['price'].toString(),
-                              imageUrl: imageUrl,
-                              category: category,
-                            );
-                          }
+                          CustomizationDialogWidget.showCustomization(
+                            context, 
+                            productTitle: title, 
+                            productPrice: data['price'].toString(),
+                            imageUrl: imageUrl,
+                            category: category,
+                            modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                          );
                         },
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         leading: ClipRRect(
@@ -144,32 +129,22 @@ class _SearchWidgetState extends State<SearchWidget> {
                         subtitle: Text(price, style: const TextStyle(color: MokaColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
                         trailing: GestureDetector(
                           onTap: () {
-                            if (isDessertOrSavory) {
-                              bool added = context.read<CartProvider>().addToCart({
-                                "title": title,
-                                "price": price,
-                                "image": imageUrl,
-                                "category": category,
-                              });
-                              if (added) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("$title sepete eklendi!"), duration: const Duration(milliseconds: 900), backgroundColor: MokaColors.primary),
-                                );
-                              }
-                            } else {
-                              CustomizationDialogWidget.showCustomization(
-                                context, 
-                                productTitle: title, 
-                                productPrice: data['price'].toString(),
-                                imageUrl: imageUrl,
-                                category: category,
-                              );
-                            }
+                            CustomizationDialogWidget.showCustomization(
+                              context, 
+                              productTitle: title, 
+                              productPrice: data['price'].toString(),
+                              imageUrl: imageUrl,
+                              category: category,
+                              modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                            );
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(color: MokaColors.accent, borderRadius: BorderRadius.circular(12)),
-                            child: Text(isDessertOrSavory ? "Ekle" : "Seç", style: const TextStyle(color: MokaColors.darkEspresso, fontWeight: FontWeight.bold, fontSize: 11)),
+                            child: Text(
+                              (data['modifierGroups'] == null || (data['modifierGroups'] as List).isEmpty) ? "Ekle" : "Seç", 
+                              style: const TextStyle(color: MokaColors.darkEspresso, fontWeight: FontWeight.bold, fontSize: 11)
+                            ),
                           ),
                         ),
                       );

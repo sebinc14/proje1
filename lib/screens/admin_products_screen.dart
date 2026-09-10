@@ -28,11 +28,31 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   List<String> _subCategories = ['Popüler Lezzetler', 'En Sık Tercih Edilenler', 'Yeni Ürün'];
   String? _selectedSubCategory;
 
+  // Reçete işlemleri için tüm malzemeler listesi
+  List<Map<String, dynamic>> _allIngredients = [];
+  List<Map<String, dynamic>> _currentRecipe = [];
+  List<Map<String, dynamic>> _currentModifierGroups = [];
+
   @override
   void initState() {
     super.initState();
     _fetchMainCategories();
     _fetchSubCategories();
+    _fetchIngredients();
+  }
+
+  Future<void> _fetchIngredients() async {
+    final snapshot = await FirebaseFirestore.instance.collection('ingredients').get();
+    setState(() {
+      _allIngredients = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['name'] ?? '',
+          'unit': data['unit'] ?? '',
+        };
+      }).toList();
+    });
   }
 
   Future<void> _fetchMainCategories() async {
@@ -162,6 +182,28 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       if (_selectedSubCategory != null && !_subCategories.contains(_selectedSubCategory)) {
         _subCategories.add(_selectedSubCategory!);
       }
+      _currentRecipe = List<Map<String, dynamic>>.from(
+        (data['recipe'] as List<dynamic>? ?? []).map((e) {
+          final map = Map<String, dynamic>.from(e);
+          map['controller'] = TextEditingController(text: map['ingredientName']);
+          return map;
+        })
+      );
+      
+      // Load modifier groups
+      if (data['modifierGroups'] != null) {
+        _currentModifierGroups = List<Map<String, dynamic>>.from(
+          (data['modifierGroups'] as List<dynamic>).map((e) {
+             final group = Map<String, dynamic>.from(e);
+             group['options'] = List<Map<String, dynamic>>.from(
+               (group['options'] as List<dynamic>? ?? []).map((o) => Map<String, dynamic>.from(o))
+             );
+             return group;
+          })
+        );
+      } else {
+        _currentModifierGroups = [];
+      }
     } else {
       _nameController.clear();
       _descriptionController.clear();
@@ -169,6 +211,8 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       _imageUrlController.clear();
       _selectedCategory = 'Sıcak Kahveler';
       _selectedSubCategory = null;
+      _currentRecipe = [];
+      _currentModifierGroups = [];
     }
 
     showModalBottomSheet(
@@ -183,12 +227,13 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                 bottom: MediaQuery.of(context).viewInsets.bottom,
                 left: 20, right: 20, top: 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(isEditing ? "Ürünü Düzenle ☕" : "Yeni Ürün Ekle ☕", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(isEditing ? "Ürünü Düzenle ☕" : "Yeni Ürün Ekle ☕", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
                   
                   // Görsel Linki Alanı
                   TextField(
@@ -273,6 +318,158 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                       )
                     ],
                   ),
+                  const Divider(height: 30, thickness: 1),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("İçindekiler / Reçete", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text("Malzeme Ekle"),
+                        onPressed: () {
+                          if (_allIngredients.isEmpty) return;
+                          setModalState(() {
+                            _currentRecipe.add({
+                              'ingredientId': _allIngredients.first['id'],
+                              'ingredientName': _allIngredients.first['name'],
+                              'amountRequired': 0.0,
+                              'unit': _allIngredients.first['unit'],
+                              'controller': TextEditingController(text: _allIngredients.first['name']),
+                            });
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  if (_currentRecipe.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text("Bu ürün için henüz malzeme seçilmedi.", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    )
+                  else
+                    ..._currentRecipe.asMap().entries.map((entry) {
+                      final int index = entry.key;
+                      final Map<String, dynamic> item = entry.value;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: DropdownMenu<String>(
+                                controller: item['controller'],
+                                initialSelection: item['ingredientId'],
+                                expandedInsets: EdgeInsets.zero,
+                                enableFilter: true,
+                                enableSearch: true,
+                                hintText: "Malzeme Ara...",
+                                inputDecorationTheme: const InputDecorationTheme(
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                  border: OutlineInputBorder(),
+                                ),
+                                dropdownMenuEntries: [
+                                  const DropdownMenuEntry<String>(
+                                    value: 'NEW',
+                                    label: '+ Yeni Ekle',
+                                  ),
+                                  ..._allIngredients.map((ing) {
+                                    return DropdownMenuEntry<String>(
+                                      value: ing['id'],
+                                      label: ing['name'] ?? '',
+                                    );
+                                  }).toList(),
+                                ],
+                                onSelected: (val) {
+                                  if (val == 'NEW') {
+                                    _showAddNewIngredientDialog(index, setModalState);
+                                  } else if (val != null) {
+                                    final selectedIng = _allIngredients.firstWhere((element) => element['id'] == val);
+                                    setModalState(() {
+                                      _currentRecipe[index]['ingredientId'] = val;
+                                      _currentRecipe[index]['ingredientName'] = selectedIng['name'];
+                                      _currentRecipe[index]['unit'] = selectedIng['unit'];
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                initialValue: item['amountRequired'] == 0.0 ? '' : item['amountRequired'].toString(),
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  labelText: "Miktar (${item['unit'] ?? ''})",
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                  border: const OutlineInputBorder()
+                                ),
+                                onChanged: (val) {
+                                  _currentRecipe[index]['amountRequired'] = double.tryParse(val) ?? 0.0;
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setModalState(() {
+                                  _currentRecipe.removeAt(index);
+                                });
+                              },
+                            )
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  
+                  const Divider(height: 30, thickness: 1),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Özelleştirme Grupları", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text("Grup Ekle"),
+                        onPressed: () => _showModifierGroupDialog(setModalState: setModalState),
+                      ),
+                    ],
+                  ),
+                  if (_currentModifierGroups.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text("Bu ürün için özelleştirme grubu yok.", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    )
+                  else
+                    ..._currentModifierGroups.asMap().entries.map((entry) {
+                      final int index = entry.key;
+                      final Map<String, dynamic> group = entry.value;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8.0),
+                        child: ListTile(
+                          title: Text(group['title'] ?? ''),
+                          subtitle: Text("${group['options']?.length ?? 0} seçenek | ${group['type'] == 'radio' ? 'Tekli Seçim' : 'Çoklu Seçim'} | Zorunlu: ${group['isRequired'] == true ? 'Evet' : 'Hayır'}"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _showModifierGroupDialog(setModalState: setModalState, editIndex: index),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setModalState(() {
+                                    _currentModifierGroups.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+
                   const SizedBox(height: 24),
 
                   SizedBox(
@@ -284,7 +481,6 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                       ),
                       onPressed: () async {
                         final name = _nameController.text.trim();
-                        final description = _descriptionController.text.trim();
                         final priceText = _priceController.text.trim();
                         final imageUrl = _imageUrlController.text.trim();
 
@@ -293,24 +489,92 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                           return;
                         }
 
+                        // Reçetedeki geçici veya yeni yazılmış malzemeleri kaydet
+                        for (int i = 0; i < _currentRecipe.length; i++) {
+                          final item = _currentRecipe[i];
+                          if (item['controller'] == null) continue;
+                          final typedName = item['controller'].text.trim();
+                          
+                          if (typedName.isEmpty) continue;
+                          
+                          // typedName mevcut malzemeler arasında var mı kontrol et
+                          final existingIngIndex = _allIngredients.indexWhere(
+                            (ing) => ing['name'].toString().toLowerCase() == typedName.toLowerCase()
+                          );
+                          
+                          if (existingIngIndex != -1) {
+                            // Zaten var, var olan ID'yi kullan
+                            _currentRecipe[i]['ingredientId'] = _allIngredients[existingIngIndex]['id'];
+                            _currentRecipe[i]['ingredientName'] = _allIngredients[existingIngIndex]['name'];
+                            _currentRecipe[i]['unit'] = _allIngredients[existingIngIndex]['unit'];
+                          } else {
+                            // Yeni malzeme yazılmış (veya + Yeni Ekle ile TEMP_ olarak eklenmiş)
+                            // Firestore'a kaydet
+                            final docRef = await FirebaseFirestore.instance.collection('ingredients').add({
+                              'name': typedName,
+                              'currentStock': 0.0,
+                              'criticalStockLevel': 0.0,
+                              'unit': item['ingredientId'].toString().startsWith('TEMP_') ? item['unit'] : 'Belirtilmedi',
+                              'needsStockUpdate': true,
+                            });
+                            
+                            _currentRecipe[i]['ingredientId'] = docRef.id;
+                            _currentRecipe[i]['ingredientName'] = typedName;
+                            if (!item['ingredientId'].toString().startsWith('TEMP_')) {
+                              _currentRecipe[i]['unit'] = 'Belirtilmedi';
+                            }
+                            
+                            // _allIngredients'a da ekleyelim ki listelerde dert olmasın
+                            _allIngredients.add({
+                              'id': docRef.id,
+                              'name': typedName,
+                              'unit': _currentRecipe[i]['unit'],
+                            });
+                          }
+                        }
+
+                        // Açıklamayı otomatik oluştur (isteğe bağlı not eklemek istenirse descriptionController.text ile birleştirilebilir)
+                        String manualDesc = _descriptionController.text.trim();
+                        String generatedDesc = "";
+                        if (_currentRecipe.isNotEmpty) {
+                          final ingredientNames = _currentRecipe.map((e) => e['ingredientName']).where((n) => n != null && n.toString().isNotEmpty).toList();
+                          if (ingredientNames.isNotEmpty) {
+                            generatedDesc = "İçindekiler: " + ingredientNames.join(", ");
+                          }
+                        }
+                        
+                        final finalDescription = manualDesc.isNotEmpty && generatedDesc.isNotEmpty
+                            ? "$manualDesc\n$generatedDesc"
+                            : (manualDesc.isNotEmpty ? manualDesc : generatedDesc);
+
+                        final cleanRecipe = _currentRecipe.map((e) {
+                          final map = Map<String, dynamic>.from(e);
+                          map.remove('controller');
+                          return map;
+                        }).toList();
+
                         if (isEditing) {
                           await FirebaseFirestore.instance.collection('products').doc(product.id).update({
                             'name': name,
-                            'description': description,
+                            'description': finalDescription,
                             'price': double.tryParse(priceText) ?? 0.0,
                             'category': _selectedCategory,
                             'subCategory': _selectedSubCategory,
                             'imageUrl': imageUrl,
+                            'recipe': cleanRecipe,
+                            'modifierGroups': _currentModifierGroups,
                           });
                         } else {
                           await FirebaseFirestore.instance.collection('products').add({
                             'name': name,
-                            'description': description,
+                            'description': finalDescription,
                             'price': double.tryParse(priceText) ?? 0.0,
                             'category': _selectedCategory,
                             'subCategory': _selectedSubCategory,
                             'imageUrl': imageUrl,
-                            'isActive': true, // Varsayılan olarak aktif
+                            'recipe': cleanRecipe,
+                            'modifierGroups': _currentModifierGroups,
+                            'isActive': true, 
                             'createdAt': Timestamp.now(),
                           });
                         }
@@ -327,6 +591,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                   const SizedBox(height: 20),
                 ],
               ),
+            ),
             );
           },
         );
@@ -334,8 +599,94 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     );
   }
 
-  Future<void> _deleteProduct(String productId) async {
-    await FirebaseFirestore.instance.collection('products').doc(productId).delete();
+  void _showAddNewIngredientDialog(int recipeIndex, StateSetter setModalState) {
+    final nameCtrl = TextEditingController();
+    final unitCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yeni Malzeme Ekle'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Malzeme Adı (Örn: Çilek)')),
+            TextField(controller: unitCtrl, decoration: const InputDecoration(labelText: 'Birim (gr, ml, adet)')),
+          ]
+        ),
+        actions: [
+          TextButton(onPressed: () { 
+            Navigator.pop(ctx); 
+            // Seçimi sıfırla
+            if (_allIngredients.isNotEmpty) {
+              setModalState(() {
+                _currentRecipe[recipeIndex]['ingredientId'] = _allIngredients.first['id'];
+              });
+            }
+          }, child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.isNotEmpty && unitCtrl.text.isNotEmpty) {
+                final tempId = 'TEMP_${DateTime.now().millisecondsSinceEpoch}';
+                
+                final newIng = {
+                  'id': tempId,
+                  'name': nameCtrl.text,
+                  'unit': unitCtrl.text,
+                };
+                
+                setState(() {
+                  _allIngredients.add(newIng);
+                });
+                
+                setModalState(() {
+                  if (!_allIngredients.any((e) => e['id'] == newIng['id'])) {
+                    _allIngredients.add(newIng);
+                  }
+                  _currentRecipe[recipeIndex]['ingredientId'] = tempId;
+                  _currentRecipe[recipeIndex]['ingredientName'] = nameCtrl.text;
+                  _currentRecipe[recipeIndex]['unit'] = unitCtrl.text;
+                  if (_currentRecipe[recipeIndex]['controller'] != null) {
+                    _currentRecipe[recipeIndex]['controller'].text = nameCtrl.text;
+                  }
+                });
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Malzeme reçeteye eklendi (Ürünü kaydettiğinizde stoğa geçecek).')));
+              }
+            },
+            child: const Text('Ekle')
+          )
+        ]
+      )
+    );
+  }
+
+  void _deleteProduct(String productId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Ürünü Sil"),
+          content: const Text("Bu ürünü silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("İptal"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                Navigator.pop(context); // Dialogu kapat
+                await FirebaseFirestore.instance.collection('products').doc(productId).delete();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ürün başarıyla silindi.')));
+                }
+              },
+              child: const Text("Sil", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }
+    );
   }
 
   Future<void> _toggleActive(String productId, bool currentStatus) async {
@@ -721,6 +1072,182 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         onPressed: () => _showProductModal(),
         child: const Icon(Icons.add, color: Colors.white),
       ),
+    );
+  }
+
+  void _showModifierGroupDialog({required StateSetter setModalState, int? editIndex}) {
+    final bool isEditing = editIndex != null;
+    
+    // Group properties
+    final TextEditingController titleCtrl = TextEditingController();
+    String type = 'radio';
+    bool isRequired = false;
+    int minSelection = 1;
+    int maxSelection = 1;
+    
+    // Options
+    List<Map<String, dynamic>> tempOptions = [];
+    
+    if (isEditing) {
+      final group = _currentModifierGroups[editIndex];
+      titleCtrl.text = group['title'] ?? '';
+      type = group['type'] ?? 'radio';
+      isRequired = group['isRequired'] ?? false;
+      minSelection = group['minSelection'] ?? 1;
+      maxSelection = group['maxSelection'] ?? 1;
+      tempOptions = List<Map<String, dynamic>>.from(
+        (group['options'] as List<dynamic>? ?? []).map((e) => Map<String, dynamic>.from(e))
+      );
+    }
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(isEditing ? "Grubu Düzenle" : "Yeni Grup Ekle"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: "Grup Adı (Örn: Hamur Tipi)", border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: type,
+                      decoration: const InputDecoration(labelText: "Seçim Tipi", border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'radio', child: Text("Tekli Seçim (Radio)")),
+                        DropdownMenuItem(value: 'checkbox', child: Text("Çoklu Seçim (Checkbox)")),
+                      ],
+                      onChanged: (val) {
+                        setDialogState(() {
+                          type = val!;
+                          if (type == 'radio') {
+                            maxSelection = 1;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text("Zorunlu Seçim mi?"),
+                      value: isRequired,
+                      onChanged: (val) {
+                        setDialogState(() => isRequired = val);
+                      },
+                    ),
+                    if (type == 'checkbox') ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: minSelection.toString(),
+                              decoration: const InputDecoration(labelText: "Min Seçim", border: OutlineInputBorder()),
+                              keyboardType: TextInputType.number,
+                              onChanged: (val) => minSelection = int.tryParse(val) ?? 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: maxSelection.toString(),
+                              decoration: const InputDecoration(labelText: "Max Seçim", border: OutlineInputBorder()),
+                              keyboardType: TextInputType.number,
+                              onChanged: (val) => maxSelection = int.tryParse(val) ?? 1,
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
+                    const Divider(height: 30, thickness: 1),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Seçenekler", style: TextStyle(fontWeight: FontWeight.bold)),
+                        TextButton.icon(
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text("Ekle"),
+                          onPressed: () {
+                            setDialogState(() {
+                              tempOptions.add({'name': '', 'extraPrice': 0.0});
+                            });
+                          },
+                        )
+                      ],
+                    ),
+                    ...tempOptions.asMap().entries.map((entry) {
+                      final int i = entry.key;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                initialValue: tempOptions[i]['name'],
+                                decoration: const InputDecoration(labelText: "Adı", border: OutlineInputBorder()),
+                                onChanged: (val) => tempOptions[i]['name'] = val,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 1,
+                              child: TextFormField(
+                                initialValue: tempOptions[i]['extraPrice'].toString(),
+                                decoration: const InputDecoration(labelText: "+ Fiyat", border: OutlineInputBorder()),
+                                keyboardType: TextInputType.number,
+                                onChanged: (val) => tempOptions[i]['extraPrice'] = double.tryParse(val) ?? 0.0,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setDialogState(() => tempOptions.removeAt(i));
+                              },
+                            )
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal")),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleCtrl.text.isEmpty) return;
+                    final newGroup = {
+                      'title': titleCtrl.text.trim(),
+                      'type': type,
+                      'isRequired': isRequired,
+                      'minSelection': minSelection,
+                      'maxSelection': maxSelection,
+                      'options': tempOptions.where((opt) => opt['name'].toString().trim().isNotEmpty).toList(),
+                    };
+                    
+                    setModalState(() {
+                      if (isEditing) {
+                        _currentModifierGroups[editIndex] = newGroup;
+                      } else {
+                        _currentModifierGroups.add(newGroup);
+                      }
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text("Kaydet"),
+                )
+              ],
+            );
+          }
+        );
+      }
     );
   }
 

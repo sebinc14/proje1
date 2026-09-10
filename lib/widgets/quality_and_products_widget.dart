@@ -80,26 +80,14 @@ class QualityAndProductsWidget extends StatelessWidget {
 
                     return GestureDetector(
                       onTap: () {
-                        final isDessertOrSavory = category == "Tatlılar" || category == "Tuzlular";
-                        if (isDessertOrSavory) {
-                          bool added = context.read<CartProvider>().addToCart({
-                            "title": title,
-                            "price": price,
-                            "image": image,
-                            "category": category,
-                          });
-                          if (added) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("$title sepete eklendi!"),
-                                duration: const Duration(seconds: 1),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } else {
-                          CustomizationDialogWidget.showCustomization(context, productTitle: title, productPrice: product["price"].toString(), imageUrl: image, category: category);
-                        }
+                        CustomizationDialogWidget.showCustomization(
+                          context, 
+                          productTitle: title, 
+                          productPrice: product["price"].toString(), 
+                          imageUrl: image, 
+                          category: category,
+                          modifierGroups: product['modifierGroups'] as List<dynamic>?,
+                        );
                       },
                       child: Container(
                         decoration: BoxDecoration(

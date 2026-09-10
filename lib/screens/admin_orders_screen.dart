@@ -240,6 +240,8 @@ class AdminOrdersScreen extends StatelessWidget {
                           ),
                         );
                       }).toList(),
+                      const Divider(height: 24, thickness: 1),
+                      _buildOrderSummary(data, primaryColor),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -275,5 +277,60 @@ class AdminOrdersScreen extends StatelessWidget {
               );
             },
           );
+  }
+
+  Widget _buildOrderSummary(Map<String, dynamic> data, Color primaryColor) {
+    final subtotal = data['subtotal'] as double?;
+    final couponCode = data['couponCode'] as String?;
+    final discountPercentage = data['discountPercentage'] as int?;
+    final couponDiscountAmount = data['couponDiscountAmount'] as double?;
+    final usedPointsAmount = data['usedPointsAmount'] as double?;
+    final totalPrice = data['totalPrice'] as double? ?? 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Özet:",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: primaryColor),
+        ),
+        const SizedBox(height: 8),
+        if (subtotal != null && ((couponDiscountAmount != null && couponDiscountAmount > 0) || (usedPointsAmount != null && usedPointsAmount > 0)))
+          _buildSummaryRow("Ara Toplam", "${subtotal.toStringAsFixed(2)} TL"),
+        if (couponCode != null && discountPercentage != null && couponDiscountAmount != null && couponDiscountAmount > 0)
+          _buildSummaryRow("Kupon ($couponCode - %$discountPercentage)", "-${couponDiscountAmount.toStringAsFixed(2)} TL", isDiscount: true),
+        if (usedPointsAmount != null && usedPointsAmount > 0)
+          _buildSummaryRow("Kullanılan Puan", "-${usedPointsAmount.toStringAsFixed(2)} TL", isDiscount: true),
+        const SizedBox(height: 4),
+        _buildSummaryRow("Net Tutar", "${totalPrice.toStringAsFixed(2)} TL", isTotal: true),
+      ],
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String amount, {bool isDiscount = false, bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              fontSize: isTotal ? 16 : 14,
+              color: isDiscount ? Colors.green.shade700 : Colors.black87,
+            ),
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              fontSize: isTotal ? 16 : 14,
+              color: isDiscount ? Colors.green.shade700 : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

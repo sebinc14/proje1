@@ -16,7 +16,8 @@ import 'stock_management_screen.dart'; // Stok yönetimi
 import 'admin_gamification_screen.dart'; // Şans Çarkı yönetimi
 import 'admin_reports_screen.dart'; // Raporlama ekranı
 import '../main.dart'; // HomeScreen'e erişmek için
-
+import 'package:provider/provider.dart';
+import '../providers/stock_provider.dart';
 import 'admin_waiter_calls_screen.dart'; // Garson Çağrıları
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -364,16 +365,28 @@ class AdminDashboardScreen extends StatelessWidget {
                   ),
 
                 // 10. Stok Yönetimi (Garsonlar da erişebilir)
-                _buildAdminCard(
-                  context,
-                  title: "Stok ve Zayi Yönetimi",
-                  subtitle: "Depo ve fireleri izle",
-                  icon: Icons.inventory,
-                  color: Colors.brown.shade400,
-                  onTap: () {
-                    Navigator.push(
+                Consumer<StockProvider>(
+                  builder: (context, stockProvider, child) {
+                    final criticalCount = stockProvider.criticalIngredients.length;
+                    final warningCount = stockProvider.warningIngredients.length;
+                    
+                    final int totalCount = criticalCount + warningCount;
+                    final Color bColor = criticalCount > 0 ? Colors.red : Colors.orange;
+
+                    return _buildAdminCard(
                       context,
-                      MaterialPageRoute(builder: (context) => const StockManagementScreen()),
+                      title: "Stok ve Zayi Yönetimi",
+                      subtitle: "Depo ve fireleri izle",
+                      icon: Icons.inventory,
+                      color: Colors.brown.shade400,
+                      badgeCount: totalCount,
+                      badgeColor: bColor,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const StockManagementScreen()),
+                        );
+                      },
                     );
                   },
                 ),
@@ -413,6 +426,7 @@ class AdminDashboardScreen extends StatelessWidget {
     required Color color,
     required VoidCallback onTap,
     int badgeCount = 0,
+    Color badgeColor = Colors.red,
   }) {
     return InkWell(
       onTap: onTap,
@@ -452,8 +466,8 @@ class AdminDashboardScreen extends StatelessWidget {
                     right: -4,
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
+                      decoration: BoxDecoration(
+                        color: badgeColor,
                         shape: BoxShape.circle,
                       ),
                       child: Text(
