@@ -81,6 +81,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     }
   }
 
+
   void _showAddMainCategoryDialog(StateSetter setModalState) {
     final TextEditingController catController = TextEditingController();
     showDialog(
@@ -190,7 +191,6 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         })
       );
       
-      // Load modifier groups
       if (data['modifierGroups'] != null) {
         _currentModifierGroups = List<Map<String, dynamic>>.from(
           (data['modifierGroups'] as List<dynamic>).map((e) {
@@ -213,6 +213,12 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       _selectedSubCategory = null;
       _currentRecipe = [];
       _currentModifierGroups = [];
+    }
+
+    bool _isIngredientRemovalActive = false;
+    if (isEditing) {
+       _isIngredientRemovalActive = _currentModifierGroups.any((g) => g['isIngredientRemoval'] == true);
+       _currentModifierGroups.removeWhere((g) => g['isIngredientRemoval'] == true);
     }
 
     showModalBottomSheet(
@@ -357,41 +363,36 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                           children: [
                             Expanded(
                               flex: 3,
-                              child: DropdownMenu<String>(
-                                controller: item['controller'],
-                                initialSelection: item['ingredientId'],
-                                expandedInsets: EdgeInsets.zero,
-                                enableFilter: true,
-                                enableSearch: true,
-                                hintText: "Malzeme Ara...",
-                                inputDecorationTheme: const InputDecorationTheme(
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                  border: OutlineInputBorder(),
-                                ),
-                                dropdownMenuEntries: [
-                                  const DropdownMenuEntry<String>(
-                                    value: 'NEW',
-                                    label: '+ Yeni Ekle',
-                                  ),
-                                  ..._allIngredients.map((ing) {
-                                    return DropdownMenuEntry<String>(
-                                      value: ing['id'],
-                                      label: ing['name'] ?? '',
-                                    );
-                                  }).toList(),
-                                ],
-                                onSelected: (val) {
-                                  if (val == 'NEW') {
-                                    _showAddNewIngredientDialog(index, setModalState);
-                                  } else if (val != null) {
-                                    final selectedIng = _allIngredients.firstWhere((element) => element['id'] == val);
-                                    setModalState(() {
-                                      _currentRecipe[index]['ingredientId'] = val;
-                                      _currentRecipe[index]['ingredientName'] = selectedIng['name'];
-                                      _currentRecipe[index]['unit'] = selectedIng['unit'];
-                                    });
-                                  }
+                              child: InkWell(
+                                onTap: () {
+                                  _showIngredientSearchDialog(index, setModalState);
                                 },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade400),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item['ingredientName']?.toString().isNotEmpty == true 
+                                            ? item['ingredientName'] 
+                                            : "Malzeme Seç/Ara...",
+                                          style: TextStyle(
+                                            color: item['ingredientName']?.toString().isNotEmpty == true ? Colors.black87 : Colors.grey.shade600,
+                                            fontSize: 14,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const Icon(Icons.search, size: 18, color: Colors.grey),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -414,7 +415,17 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () {
                                 setModalState(() {
+                                  String ingName = _currentRecipe[index]['ingredientName']?.toString() ?? '';
                                   _currentRecipe.removeAt(index);
+                                  
+                                  if (ingName.isNotEmpty) {
+                                    String desc = _descriptionController.text;
+                                    desc = desc.replaceAll(RegExp(r',\s*' + RegExp.escape(ingName)), '');
+                                    desc = desc.replaceAll(RegExp(RegExp.escape(ingName) + r'\s*,\s*'), '');
+                                    desc = desc.replaceAll(ingName, '').trim();
+                                    if (desc.endsWith(',')) desc = desc.substring(0, desc.length - 1);
+                                    _descriptionController.text = desc;
+                                  }
                                 });
                               },
                             )
@@ -448,7 +459,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                         margin: const EdgeInsets.only(bottom: 8.0),
                         child: ListTile(
                           title: Text(group['title'] ?? ''),
-                          subtitle: Text("${group['options']?.length ?? 0} seçenek | ${group['type'] == 'radio' ? 'Tekli Seçim' : 'Çoklu Seçim'} | Zorunlu: ${group['isRequired'] == true ? 'Evet' : 'Hayır'}"),
+                          subtitle: group['isIngredientRemoval'] == true 
+                            ? const Text("Malzeme Çıkarma Ekranı", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)) 
+                            : Text("${group['options']?.length ?? 0} seçenek | ${group['type'] == 'radio' ? 'Tekli Seçim' : 'Çoklu Seçim'} | Zorunlu: ${group['isRequired'] == true ? 'Evet' : 'Hayır'}"),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -470,6 +483,23 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                       );
                     }).toList(),
 
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SwitchListTile(
+                      title: const Text("Malzeme Çıkarma Ekranı", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                      subtitle: const Text("Müşteriler ürünün reçetesindeki malzemeleri çıkarabilir.", style: TextStyle(fontSize: 11)),
+                      value: _isIngredientRemovalActive,
+                      onChanged: (val) {
+                        setModalState(() {
+                          _isIngredientRemovalActive = val;
+                        });
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   SizedBox(
@@ -533,25 +563,27 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                           }
                         }
 
-                        // Açıklamayı otomatik oluştur (isteğe bağlı not eklemek istenirse descriptionController.text ile birleştirilebilir)
-                        String manualDesc = _descriptionController.text.trim();
-                        String generatedDesc = "";
-                        if (_currentRecipe.isNotEmpty) {
-                          final ingredientNames = _currentRecipe.map((e) => e['ingredientName']).where((n) => n != null && n.toString().isNotEmpty).toList();
-                          if (ingredientNames.isNotEmpty) {
-                            generatedDesc = "İçindekiler: " + ingredientNames.join(", ");
-                          }
-                        }
-                        
-                        final finalDescription = manualDesc.isNotEmpty && generatedDesc.isNotEmpty
-                            ? "$manualDesc\n$generatedDesc"
-                            : (manualDesc.isNotEmpty ? manualDesc : generatedDesc);
+                        // Kullanıcının metin kutusuna girdiği/düzenlediği açıklama neyse o baz alınacak
+                        String finalDescription = _descriptionController.text.trim();
 
                         final cleanRecipe = _currentRecipe.map((e) {
                           final map = Map<String, dynamic>.from(e);
                           map.remove('controller');
                           return map;
                         }).toList();
+
+                        final groupsToSave = List<Map<String, dynamic>>.from(_currentModifierGroups);
+                        if (_isIngredientRemovalActive) {
+                          groupsToSave.add({
+                            'title': 'Çıkarılacak Malzemeler',
+                            'type': 'checkbox',
+                            'isRequired': false,
+                            'minSelection': 0,
+                            'maxSelection': 0,
+                            'isIngredientRemoval': true,
+                            'options': []
+                          });
+                        }
 
                         if (isEditing) {
                           await FirebaseFirestore.instance.collection('products').doc(product.id).update({
@@ -562,7 +594,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                             'subCategory': _selectedSubCategory,
                             'imageUrl': imageUrl,
                             'recipe': cleanRecipe,
-                            'modifierGroups': _currentModifierGroups,
+                            'modifierGroups': groupsToSave,
                           });
                         } else {
                           await FirebaseFirestore.instance.collection('products').add({
@@ -573,7 +605,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                             'subCategory': _selectedSubCategory,
                             'imageUrl': imageUrl,
                             'recipe': cleanRecipe,
-                            'modifierGroups': _currentModifierGroups,
+                            'modifierGroups': groupsToSave,
                             'isActive': true, 
                             'createdAt': Timestamp.now(),
                           });
@@ -596,6 +628,109 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           },
         );
       },
+    );
+  }
+
+  void _showIngredientSearchDialog(int index, StateSetter setModalState) {
+    String searchQuery = "";
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final filteredIngredients = _allIngredients.where((ing) {
+              final name = ing['name']?.toString().toLowerCase() ?? '';
+              return name.contains(searchQuery.toLowerCase());
+            }).toList();
+
+            return AlertDialog(
+              title: const Text("Malzeme Seç"),
+              contentPadding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 0),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: MediaQuery.of(context).size.height * 0.5,
+                child: Column(
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: "Malzeme Ara",
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          searchQuery = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.add, color: Colors.blue),
+                            title: const Text("+ Yeni Ekle", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showAddNewIngredientDialog(index, setModalState);
+                            },
+                          ),
+                          const Divider(height: 1),
+                          ...filteredIngredients.map((ing) {
+                            return ListTile(
+                              title: Text(ing['name'] ?? ''),
+                              subtitle: Text("Birim: ${ing['unit'] ?? ''}", style: const TextStyle(fontSize: 12)),
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                setModalState(() {
+                                  String oldName = _currentRecipe[index]['ingredientName']?.toString() ?? '';
+                                  String newName = ing['name']?.toString() ?? '';
+                                  
+                                  _currentRecipe[index]['ingredientId'] = ing['id'];
+                                  _currentRecipe[index]['ingredientName'] = newName;
+                                  _currentRecipe[index]['unit'] = ing['unit'];
+                                  if (_currentRecipe[index]['controller'] != null) {
+                                    _currentRecipe[index]['controller'].text = newName;
+                                  }
+                                  
+                                  String desc = _descriptionController.text;
+                                  if (oldName.isNotEmpty && desc.contains(oldName) && oldName != newName) {
+                                    desc = desc.replaceFirst(oldName, newName);
+                                  } else if (newName.isNotEmpty && !desc.contains(newName)) {
+                                    if (desc.trim().isEmpty) {
+                                      desc = newName;
+                                    } else {
+                                      desc = desc.trimRight();
+                                      if (desc.endsWith(',')) {
+                                        desc = desc + " " + newName;
+                                      } else {
+                                        desc = desc + ", " + newName;
+                                      }
+                                    }
+                                  }
+                                  _descriptionController.text = desc;
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("İptal"),
+                )
+              ],
+            );
+          }
+        );
+      }
     );
   }
 
@@ -1084,6 +1219,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     bool isRequired = false;
     int minSelection = 1;
     int maxSelection = 1;
+    bool isIngredientRemoval = false;
     
     // Options
     List<Map<String, dynamic>> tempOptions = [];
@@ -1095,6 +1231,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       isRequired = group['isRequired'] ?? false;
       minSelection = group['minSelection'] ?? 1;
       maxSelection = group['maxSelection'] ?? 1;
+      isIngredientRemoval = group['isIngredientRemoval'] ?? false;
       tempOptions = List<Map<String, dynamic>>.from(
         (group['options'] as List<dynamic>? ?? []).map((e) => Map<String, dynamic>.from(e))
       );

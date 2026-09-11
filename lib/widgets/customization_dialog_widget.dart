@@ -12,6 +12,7 @@ class CustomizationDialogWidget extends StatefulWidget {
   final Map<String, dynamic>? initialRawCustomization;
   final int? initialQuantity;
   final List<dynamic>? modifierGroups;
+  final List<dynamic>? recipe;
 
   const CustomizationDialogWidget({
     super.key,
@@ -23,6 +24,7 @@ class CustomizationDialogWidget extends StatefulWidget {
     this.initialRawCustomization,
     this.initialQuantity,
     this.modifierGroups,
+    this.recipe,
   });
 
   static void showCustomization(BuildContext context, {
@@ -34,9 +36,12 @@ class CustomizationDialogWidget extends StatefulWidget {
     Map<String, dynamic>? initialRawCustomization,
     int? initialQuantity,
     List<dynamic>? modifierGroups,
+    List<dynamic>? recipe,
   }) {
-    // Özelleştirme grubu yoksa ve yeni ekleniyorsa direkt sepete at
-    if ((modifierGroups == null || modifierGroups.isEmpty) && editIndex == null) {
+    // Özelleştirme grubu yoksa, çıkarılacak reçete yoksa ve yeni ekleniyorsa direkt sepete at
+    if ((modifierGroups == null || modifierGroups.isEmpty) && 
+        (recipe == null || recipe.isEmpty) && 
+        editIndex == null) {
       final pStr = productPrice.replaceAll(RegExp(r'[^0-9.]'), '');
       final pDouble = double.tryParse(pStr) ?? 0.0;
       final productMap = {
@@ -71,6 +76,7 @@ class CustomizationDialogWidget extends StatefulWidget {
         initialRawCustomization: initialRawCustomization,
         initialQuantity: initialQuantity,
         modifierGroups: modifierGroups,
+        recipe: recipe,
       ),
     );
   }
@@ -86,6 +92,9 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
 
   // state for modifiers
   Map<int, dynamic> _selectedOptions = {};
+  
+  // state for removed ingredients
+  Set<String> _removedIngredients = {};
 
   @override
   void initState() {
@@ -125,6 +134,11 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
           }
         });
       }
+      
+      if (raw['removedIngredients'] != null) {
+        _removedIngredients = Set<String>.from(raw['removedIngredients'] as List);
+      }
+      
       noteController.text = raw['note'] ?? '';
     }
   }
@@ -182,6 +196,10 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
         }
       }
     }
+    if (_removedIngredients.isNotEmpty) {
+      extras.add("Çıkarılacak: ${_removedIngredients.join(', ')}");
+    }
+    
     if (noteController.text.trim().isNotEmpty) extras.add("Not: ${noteController.text.trim()}");
 
     final saveOptions = {};
@@ -197,8 +215,10 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
       "rawCustomization": {
          "basePrice": basePrice,
          "selectedOptions": saveOptions,
+         "removedIngredients": _removedIngredients.toList(),
          "note": noteController.text,
          "modifierGroups": widget.modifierGroups,
+         "recipe": widget.recipe,
       }
     };
 
@@ -308,6 +328,8 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
                       ...widget.modifierGroups!.asMap().entries.map((entry) {
                         final int gIdx = entry.key;
                         final Map<String, dynamic> group = entry.value;
+                        if (group['isIngredientRemoval'] == true) return const SizedBox.shrink();
+                        
                         final List options = group['options'] as List? ?? [];
                         final bool isCheckbox = group['type'] == 'checkbox';
                         final int maxSel = group['maxSelection'] ?? 1;
@@ -416,6 +438,66 @@ class _CustomizationDialogWidgetState extends State<CustomizationDialogWidget> {
                           ],
                         );
                       }).toList(),
+
+                    if (widget.recipe != null && widget.recipe!.isNotEmpty && (widget.modifierGroups?.any((g) => g['isIngredientRemoval'] == true) ?? false))
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle("ÇIKARMAK İSTEDİĞİNİZ ÜRÜN VAR MI?"),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: widget.recipe!.map((ingredient) {
+                              final String ingName = ingredient['ingredientName']?.toString() ?? '';
+                              if (ingName.isEmpty) return const SizedBox();
+                              
+                              final bool isRemoved = _removedIngredients.contains(ingName);
+                              
+                              return InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    if (isRemoved) {
+                                      _removedIngredients.remove(ingName);
+                                    } else {
+                                      _removedIngredients.add(ingName);
+                                    }
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isRemoved ? Colors.red.shade50 : Colors.white,
+                                    border: Border.all(color: isRemoved ? Colors.red.shade300 : Colors.grey.shade300, width: 1.5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isRemoved ? Icons.remove_circle : Icons.circle_outlined,
+                                        size: 16,
+                                        color: isRemoved ? Colors.red : Colors.grey,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        ingName,
+                                        style: TextStyle(
+                                          fontWeight: isRemoved ? FontWeight.bold : FontWeight.normal,
+                                          color: isRemoved ? Colors.red.shade800 : Colors.black87,
+                                          fontSize: 13,
+                                          decoration: isRemoved ? TextDecoration.lineThrough : TextDecoration.none,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
 
                     _buildSectionTitle("BARİSTAYA / ŞEFE ÖZEL NOT"),
                     TextField(

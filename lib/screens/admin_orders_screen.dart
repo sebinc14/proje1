@@ -191,6 +191,7 @@ class AdminOrdersScreen extends StatelessWidget {
                         // "Not: " ile başlayanları not kısmına, diğerlerini ekstralara ayır
                         List<String> detailsList = [];
                         String note = product['note'] ?? '';
+                        String removedItems = '';
                         
                         for (var extra in extrasList) {
                           String extraStr = extra.toString();
@@ -199,6 +200,8 @@ class AdminOrdersScreen extends StatelessWidget {
                             if (note.isEmpty) {
                               note = extraStr.replaceFirst("Not: ", "").trim();
                             }
+                          } else if (extraStr.startsWith("Çıkarılacak: ")) {
+                            removedItems = extraStr.replaceFirst("Çıkarılacak: ", "").trim();
                           } else {
                             detailsList.add(extraStr);
                           }
@@ -227,6 +230,11 @@ class AdminOrdersScreen extends StatelessWidget {
                                       Text(
                                         details,
                                         style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                                      ),
+                                    if (removedItems.isNotEmpty)
+                                      Text(
+                                        "Çıkarılan Ürünler: $removedItems",
+                                        style: TextStyle(color: Colors.red.shade600, fontSize: 13, fontWeight: FontWeight.bold),
                                       ),
                                     if (note.isNotEmpty)
                                       Text(

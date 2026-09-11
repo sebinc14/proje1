@@ -275,6 +275,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
           imageUrl: widget.data['imageUrl'],
           category: category,
           modifierGroups: widget.data['modifierGroups'] as List<dynamic>?,
+          recipe: widget.data['recipe'] as List<dynamic>?,
         );
       },
       child: Container(
@@ -429,6 +430,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget> {
                             imageUrl: widget.data['imageUrl'],
                             category: category,
                             modifierGroups: widget.data['modifierGroups'] as List<dynamic>?,
+                            recipe: widget.data['recipe'] as List<dynamic>?,
                           );
                         },
                         child: Container(

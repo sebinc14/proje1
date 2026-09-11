@@ -45,6 +45,7 @@ class BaristaSuggestionWidget extends StatelessWidget {
               imageUrl: imageUrl,
               category: "Barista Önerisi",
               modifierGroups: data['modifierGroups'] as List<dynamic>?,
+              recipe: data['recipe'] as List<dynamic>?,
             );
           },
           child: Container(
@@ -187,6 +188,7 @@ class BaristaSuggestionWidget extends StatelessWidget {
                               imageUrl: imageUrl,
                               category: "Barista Önerisi",
                               modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                              recipe: data['recipe'] as List<dynamic>?,
                             );
                           },
                           child: Container(

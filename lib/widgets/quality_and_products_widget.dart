@@ -87,6 +87,7 @@ class QualityAndProductsWidget extends StatelessWidget {
                           imageUrl: image, 
                           category: category,
                           modifierGroups: product['modifierGroups'] as List<dynamic>?,
+                          recipe: product['recipe'] as List<dynamic>?,
                         );
                       },
                       child: Container(
@@ -186,7 +187,7 @@ class QualityAndProductsWidget extends StatelessWidget {
                                               );
                                             }
                                         } else {
-                                          CustomizationDialogWidget.showCustomization(context, productTitle: title, productPrice: product["price"].toString(), imageUrl: image, category: category);
+                                          CustomizationDialogWidget.showCustomization(context, productTitle: title, productPrice: product["price"].toString(), imageUrl: image, category: category, modifierGroups: product['modifierGroups'] as List<dynamic>?, recipe: product['recipe'] as List<dynamic>?);
                                         }
                                       },
                                       child: Container(

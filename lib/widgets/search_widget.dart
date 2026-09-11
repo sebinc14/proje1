@@ -116,6 +116,7 @@ class _SearchWidgetState extends State<SearchWidget> {
                             imageUrl: imageUrl,
                             category: category,
                             modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                            recipe: data['recipe'] as List<dynamic>?,
                           );
                         },
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -136,6 +137,7 @@ class _SearchWidgetState extends State<SearchWidget> {
                               imageUrl: imageUrl,
                               category: category,
                               modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                              recipe: data['recipe'] as List<dynamic>?,
                             );
                           },
                           child: Container(

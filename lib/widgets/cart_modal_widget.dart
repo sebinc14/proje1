@@ -173,6 +173,7 @@ class CartModalWidget {
                                                           initialRawCustomization: item["rawCustomization"],
                                                           initialQuantity: qty,
                                                           modifierGroups: item["rawCustomization"]["modifierGroups"],
+                                                          recipe: item["rawCustomization"]["recipe"],
                                                         );
                                                       },
                                                       child: Container(

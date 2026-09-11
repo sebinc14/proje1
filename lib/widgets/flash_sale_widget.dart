@@ -147,6 +147,7 @@ class _FlashSaleWidgetState extends State<FlashSaleWidget> {
                             category: category,
                             imageUrl: image,
                             modifierGroups: data['modifierGroups'] as List<dynamic>?,
+                            recipe: data['recipe'] as List<dynamic>?,
                           );
                         },
                         child: Container(
