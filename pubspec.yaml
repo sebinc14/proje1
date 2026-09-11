@@ -1,6 +1,6 @@
 name: proje
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: 'https://pub.dev'
 
 version: 1.0.0+1
 
@@ -34,3 +34,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  false_secrets:
+  - /android/app/google-services.json
+  - /lib/firebase_options.dart
